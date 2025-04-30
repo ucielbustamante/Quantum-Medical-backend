@@ -1,0 +1,20 @@
+# Node
+node_modules/
+coverage/
+
+# Dotenv files
+.env
+.env.*
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sequelize
+*.sqlite
+
+# Test output
+jest-html-reporters-*
