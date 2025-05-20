@@ -4,9 +4,9 @@ const { User, Patient } = require("../../src/models");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { secret, expiresIn } = require("../../src/config/auth.config");
-const StatusCodes = require("../../src/constants/statusCodes");
+const { StatusCodes } = require("http-status-codes");
 
-describe("Protected route /api/users/patient/profile", () => {
+describe("Protected route /api/rbac/patient/profile", () => {
   let token, userId;
 
   beforeEach(async () => {
@@ -29,7 +29,7 @@ describe("Protected route /api/users/patient/profile", () => {
 
   it("returns 200 and patient profile for Patient role", async () => {
     const res = await request(app)
-      .get("/api/users/patient/profile")
+      .get("/api/rbac/patient/profile")
       .set("Authorization", `Bearer ${token}`)
       .expect(StatusCodes.OK);
 
@@ -45,7 +45,7 @@ describe("Protected route /api/users/patient/profile", () => {
   it("returns 403 for Doctor role", async () => {
     const doctorToken = jwt.sign({ id: "x", role: "Doctor" }, secret, { expiresIn });
     const res = await request(app)
-      .get("/api/users/patient/profile")
+      .get("/api/rbac/patient/profile")
       .set("Authorization", `Bearer ${doctorToken}`)
       .expect(StatusCodes.FORBIDDEN);
 
@@ -55,7 +55,7 @@ describe("Protected route /api/users/patient/profile", () => {
 
   it("returns 401 for invalid token", async () => {
     const res = await request(app)
-      .get("/api/users/patient/profile")
+      .get("/api/rbac/patient/profile")
       .set("Authorization", "Bearer invalid_token")
       .expect(StatusCodes.UNAUTHORIZED);
 
@@ -65,7 +65,7 @@ describe("Protected route /api/users/patient/profile", () => {
 
   it("returns 403 when no token is provided", async () => {
     const res = await request(app)
-      .get("/api/users/patient/profile")
+      .get("/api/rbac/patient/profile")
       .expect(StatusCodes.FORBIDDEN);
 
     expect(res.body.statusCode).toBe(StatusCodes.FORBIDDEN);
@@ -74,7 +74,7 @@ describe("Protected route /api/users/patient/profile", () => {
 
   it("returns 403 for malformed Authorization header", async () => {
     const res = await request(app)
-      .get("/api/users/patient/profile")
+      .get("/api/rbac/patient/profile")
       .set("Authorization", "Invalid_Format_Token")
       .expect(StatusCodes.FORBIDDEN);
 

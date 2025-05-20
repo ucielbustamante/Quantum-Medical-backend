@@ -1,20 +1,27 @@
 const router   = require("express").Router();
 const passport = require("passport");
 const authCtrl = require("../controllers/auth.controller");
+const logger = require("../config/logger");
+const { findByEmailInBody } = require("../middlewares/search.middleware");
 
 router.post("/register", authCtrl.register);
 
-router.post("/login", authCtrl.login);
+router.post("/login", findByEmailInBody("User"), authCtrl.login);
 
 router.get("/google", passport.authenticate("google",{ scope:["profile","email"] }));
 router.get("/google/callback",
   passport.authenticate("google",{ session:false, failureRedirect:"/login" }),
   (req,res) => {
-    const token = require("jsonwebtoken")
-      .sign({ id:req.user.id, role:req.user.role },
-            require("../config/auth.config").secret,
-            { expiresIn:require("../config/auth.config").expiresIn }
-      );
+    const jwt = require("jsonwebtoken");
+    const authConfig = require("../config/auth.config");
+    
+    const token = jwt.sign(
+      { id:req.user.id, role:req.user.role },
+      authConfig.secret,
+      { expiresIn:authConfig.expiresIn }
+    );
+    
+    logger.info(`Redireccionando después de autenticación OAuth exitosa: Usuario ID ${req.user.id}, Email: ${req.user.email}`);
     res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
   }
 );

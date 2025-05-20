@@ -1,7 +1,7 @@
 const request = require("supertest");
 const app = require("../../src");
 const { User } = require("../../src/models");
-const StatusCodes = require("../../src/constants/statusCodes");
+const { StatusCodes } = require("http-status-codes");
 
 describe("POST /api/auth/register", () => {
   const validUserData = {
@@ -14,7 +14,7 @@ describe("POST /api/auth/register", () => {
   };
 
   beforeEach(async () => {
-    await User.destroy({ where: {} }); // Limpiar la base de datos antes de cada test
+    await User.destroy({ where: {} });
   });
 
   it("should create patient user and return 201", async () => {
@@ -29,7 +29,6 @@ describe("POST /api/auth/register", () => {
     expect(res.body.data).toHaveProperty("role", "Patient");
     expect(res.body.data).toHaveProperty("id");
 
-    // Verificar que el usuario se creó en la base de datos
     const user = await User.findOne({ where: { email: validUserData.email } });
     expect(user).toBeTruthy();
     expect(user.role).toBe("Patient");
@@ -51,12 +50,10 @@ describe("POST /api/auth/register", () => {
   });
 
   it("should return 400 when email already exists", async () => {
-    // Primer registro
     await request(app)
       .post("/api/auth/register")
       .send(validUserData);
 
-    // Intentar registrar el mismo email
     const res = await request(app)
       .post("/api/auth/register")
       .send(validUserData)
@@ -69,7 +66,6 @@ describe("POST /api/auth/register", () => {
   it("should return 400 when required fields are missing", async () => {
     const invalidData = {
       name: "Alice",
-      // Falta el apellido y otros campos requeridos
     };
 
     const res = await request(app)

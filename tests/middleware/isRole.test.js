@@ -1,6 +1,6 @@
-const { isRole } = require("../../src/middlewares/authjwt");
+const { isRole } = require("../../src/middlewares/authjwt.middleware");
 const httpMocks = require("node-mocks-http");
-const StatusCodes = require("../../src/constants/statusCodes");
+const { StatusCodes } = require("http-status-codes");
 
 describe("isRole middleware", () => {
   let req, res, next;
