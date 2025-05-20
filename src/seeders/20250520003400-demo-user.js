@@ -55,7 +55,7 @@ module.exports = {
   async down(queryInterface, Sequelize) {
     await queryInterface.bulkDelete('Users', {
       email: {
-        [Sequelize.Op.in]: ['juan.perez@example.com', 'laura.gomez@example.com']
+        [Sequelize.Op.in]: ['juan.perez@example.com', 'laura.gomez@example.com', 'admin@example.com']
       }
     }, {});
   }
