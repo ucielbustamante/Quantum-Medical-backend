@@ -13,6 +13,9 @@ const { metricsMiddleware, metricsEndpoint } = require('./config/metrics');
 const frontendLogRoutes = require('./routes/logs.frontend.routes');
 const rbacRoutes = require('./routes/rbac.routes');
 const { isRole } = require('./middlewares/authjwt.middleware');
+const specialtyRoutes = require('./routes/specialty.routes');
+const doctorSpecialtyRoutes = require('./routes/doctorSpecialty.routes');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -46,11 +49,14 @@ app.use('/api/users', userRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/logs/frontend', frontendLogRoutes);
+app.use('/api/specialties', specialtyRoutes); //especialidades
+app.use('/api/doctor-specialties', doctorSpecialtyRoutes);// especialidades de doctores
 app.get('/metrics', metricsEndpoint);
 app.get('/api/admin/db-stats', isRole("Admin"), (req, res) => {
   const stats = dbMonitor.monitorPoolStatus();
   res.json({ status: 'success', data: stats });
 });
+
 
 app.get('/api/hello', (req, res) => {
   res.json({ message: 'Hola mundo' });
