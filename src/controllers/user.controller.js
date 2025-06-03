@@ -20,7 +20,13 @@ exports.getUserByEmail = (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const user = await User.create(req.body);
+    const { name, lastname, email, password, role, dni } = req.body;
+    const user = await User.create({ name, lastname, email, password_hash: password, role, dni });
+    if (role === "Patient") {
+      await Patient.create({ user_id: user.id });
+    } else if (role === "Doctor") {
+      await Doctor.create({ user_id: user.id });
+    }
     res.status(StatusCodes.CREATED).json({
       statusCode: StatusCodes.CREATED,
       data: { user }

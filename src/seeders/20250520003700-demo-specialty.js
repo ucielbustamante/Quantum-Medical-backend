@@ -7,9 +7,9 @@ module.exports = {
 
     // Definir las especialidades deseadas
     const specialtiesToInsert = [
-      { name: 'Cardiología' },
-      { name: 'Traumatología' },
-      { name: 'Dermatología' }
+      { name: 'Cardiología' , id: "ffe545c8-487d-4ea3-8506-fe15eaea621f"},
+      { name: 'Traumatología' , id: "d0b77bd2-e8ea-4dc4-b778-22f654e6bbd6"},
+      { name: 'Dermatología' , id: "9acab4b5-b29e-4bb3-a3d6-4718e7c47a9f"}
     ];
 
     // Consultar cuáles de estas especialidades ya existen en la tabla
@@ -24,7 +24,7 @@ module.exports = {
     const specialtiesToBulkInsert = specialtiesToInsert
       .filter(specialty => !existingNames.includes(specialty.name))
       .map(specialty => ({
-        id: uuidv4(),
+        id: specialty.id,
         name: specialty.name,
         is_active: true,
         createdAt: new Date(),
