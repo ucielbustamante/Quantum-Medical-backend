@@ -1,4 +1,4 @@
-const { User } = require("../models");
+const { User, Patient, Doctor } = require("../models");
 const { StatusCodes } = require("http-status-codes");
 const logger = require("../config/logger");
 

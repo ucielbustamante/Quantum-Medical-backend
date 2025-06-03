@@ -1,7 +1,7 @@
 'use strict';
 
 const uuids = [
-  "55871770-a67b-4e25-a406-e31b2bae8b8e",
+  "04c3c24a-ab08-4632-a2a7-a232ecfa040c",
   "c70f1747-2735-4401-9895-78585ebdda7b",
   "c381ab7d-df38-4e15-83e4-758e1f0d9117",
   "e7185944-b0a5-4cf5-89d2-b155c5fb2367",
@@ -28,9 +28,7 @@ module.exports = {
       console.log('No se encontraron usuarios con rol Doctor');
       return;
     }
-
-    const doctorRecords = await Promise.all(doctors.map(async (doctor) => {
-      let id = -1;
+    const doctorRecords = await Promise.all(doctors.map(async (doctor, i) => {
       const [existingDoctor] = await queryInterface.sequelize.query(
         `SELECT id FROM "Doctors" WHERE user_id = '${doctor.id}' LIMIT 1;`
       );
@@ -39,10 +37,9 @@ module.exports = {
         console.log(`El doctor ${doctor.email} ya tiene un registro, saltando inserción.`);
         return null;
       }
-      id++;
-      const licenseNumber = `DOC-${(1000 + id).toString().padStart(4, '0')}`;
+      const licenseNumber = `DOC-${(1000 + i).toString().padStart(4, '0')}`;
       return {
-        id: uuids[id],
+        id: uuids[i],
         user_id: doctor.id,
         license_number: licenseNumber,
         createdAt: new Date(),

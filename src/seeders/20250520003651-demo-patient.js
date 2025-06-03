@@ -24,9 +24,8 @@ module.exports = {
 
     // Lista de aseguradoras de ejemplo
     const healthInsurances = ['OSDE', 'Swiss Medical', 'Medicus', 'Galeno', 'Omint', 'SanCor Salud'];
-    
     // Generar registros de pacientes
-    const patientRecords = await Promise.all(patients.map(async (patient) => {
+    const patientRecords = await Promise.all(patients.map(async (patient, i) => {
       // Verificar si ya existe un paciente con ese user_id
       const [existingPatient] = await queryInterface.sequelize.query(
         `SELECT id FROM "Patients" WHERE user_id = '${patient.id}' LIMIT 1;`
@@ -48,10 +47,8 @@ module.exports = {
       const birthday = new Date(today.getFullYear() - randomAge, 
                               Math.floor(Math.random() * 12), 
                               Math.floor(Math.random() * 28) + 1);
-      let id = -1;
-      id++;
       return {
-        id: ids[id],
+        id: ids[i],
         user_id: patient.id,
         health_insurance: randomInsurance,
         health_insurance_number: randomInsuranceNumber,

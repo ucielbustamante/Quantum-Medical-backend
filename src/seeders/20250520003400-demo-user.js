@@ -38,33 +38,33 @@ module.exports = {
 
     // Verifico si ya existen algunos de estos emails para no duplicar
     const [existing] = await queryInterface.sequelize.query(
-      `SELECT email FROM "Users" WHERE email IN (${demoEmails.map(e => `'${e}'`).join(', ')})`
+      `SELECT email FROM "Users" WHERE email IN (${demoEmails.map(e => `'${e.email}'`).join(', ')})`
     );
     const existingEmails = existing.map(u => u.email);
 
     // Solo inserto los que no estén ya en la tabla
     const toInsert = demoEmails
-      .filter(email => !existingEmails.includes(email))
-      .map(email => {
+      .filter(emailObj => !existingEmails.includes(emailObj.email))
+      .map(emailObj => {
         let role;
-        if (email.startsWith('dr.')) {
+        if (emailObj.email.startsWith('dr.')) {
           role = 'Doctor';
-        } else if (email.startsWith('patient.')) {
+        } else if (emailObj.email.startsWith('patient.')) {
           role = 'Patient';
         } else {
           role = 'Admin';
         }
-        const namePart = email.split('@')[0].split('.');
+        const namePart = emailObj.email.split('@')[0].split('.');
         const name = namePart[0].charAt(0).toUpperCase() + namePart[0].slice(1);
         const lastname = namePart[1]
           ? namePart[1].charAt(0).toUpperCase() + namePart[1].slice(1)
           : 'Demo';
 
         return {
-          id: email.id,
+          id: emailObj.id,
           name,
           lastname,
-          email: email.email,
+          email: emailObj.email,
           password_hash: bcrypt.hashSync('password123', 10),
           role,
           dni: Math.floor(10000000 + Math.random() * 90000000).toString(),
