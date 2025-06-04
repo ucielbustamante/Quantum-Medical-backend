@@ -1,6 +1,80 @@
 const { User, Patient } = require("../models");
 const { StatusCodes } = require("http-status-codes");
+const { Op } = require("sequelize");
 const logger = require("../config/logger");
+
+
+
+exports.searchPatient = async (req, res) => {
+    try {
+        const {
+            name,
+            lastname,
+            email,
+            dni,
+            limit,
+            offset
+        } = req.body;
+
+        const validKeys = [
+            'name', 'lastname', 'email', 'dni',
+           'limit', 'offset'
+        ];
+        const receivedKeys = Object.keys(req.body);
+        const invalidKeys = receivedKeys.filter(key => !validKeys.includes(key));
+        if (invalidKeys.length > 0) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                statusCode: StatusCodes.BAD_REQUEST,
+                message: 'Las keys del body deben ser: ' + validKeys.join(', ')
+            });
+        }
+
+        const userWhere = { is_active: true };
+        if (name) userWhere.name = { [Op.iLike]: `%${name}%` };
+        if (lastname) userWhere.lastname = { [Op.iLike]: `%${lastname}%` };
+        if (email) userWhere.email = email;
+        if (dni) {
+            if (typeof dni !== 'string') {
+                return res.status(StatusCodes.BAD_REQUEST).json({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: 'El campo "dni" debe ser texto'
+                });
+            }
+            userWhere.dni = dni;
+        }
+
+        const patientWhere = {};
+
+        const include = [
+            {
+                model: User,
+                attributes: ['id', 'name', 'lastname', 'email', 'dni', 'is_active'],
+                where: userWhere,
+                required: true
+            }
+        ];
+
+        const patient = await Patient.findAll({
+            where: patientWhere,
+            include,
+            limit: limit || 5,
+            offset: offset || 0
+        });
+
+        return res.status(StatusCodes.OK).json({
+            statusCode: StatusCodes.OK,
+            message: 'Pacientes encontrados exitosamente',
+            data: patient
+        });
+    } catch (error) {
+        logger.error(`Error en searchPatient: ${error.message}`);
+        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+            message: 'Error al buscar pacientes',
+            error: error.message
+        });
+    }
+};
 
 exports.getPatient = async (req, res) => {
     try {
