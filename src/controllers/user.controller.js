@@ -2,6 +2,28 @@ const { User, Patient, Doctor } = require("../models");
 const { StatusCodes } = require("http-status-codes");
 const logger = require("../config/logger");
 
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      where: { is_active: true },
+    });
+
+    logger.info(`Usuarios consultados exitosamente. Total: ${users.length}`);
+
+    return res.status(StatusCodes.OK).json({
+      statusCode: StatusCodes.OK,
+      data: users,
+    });
+  } catch (error) {
+    logger.error(`Error al obtener usuarios: ${error.message}`, { stack: error.stack });
+
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      data: { message: "Error al obtener los usuarios" },
+    });
+  }
+};
+
 exports.getUser = (req, res) => {
   const user = req.user;
   res.status(StatusCodes.OK).json({
