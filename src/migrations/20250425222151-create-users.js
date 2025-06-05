@@ -21,6 +21,8 @@ module.exports = {
       },
       is_active: { type: Sequelize.BOOLEAN, defaultValue: true },
       dni: { type: Sequelize.STRING(20) },
+      reset_password_token: { type: Sequelize.STRING(255), allowNull: true, defaultValue: null },
+      reset_password_expires: { type: Sequelize.DATE, allowNull: true, defaultValue: null },
       createdAt: { type: Sequelize.DATE, allowNull: false },
       updatedAt: { type: Sequelize.DATE, allowNull: false }
     });

@@ -14,42 +14,72 @@ class MailService {
         MailService.instance = this;
     }
 
-    async addRecord(modelData) {
+    _buildHeaders() {
+        return {
+            'ApplicationAccessKey': this.appsheetApiKey,
+            'Content-Type': 'application/json'
+        };
+    }
+
+    _buildPayload(action, locale, modelData) {
+        return {
+            Action: action,
+            Properties: {
+                Locale: locale
+            },
+            Rows: [modelData]
+        };
+    }
+
+    async _postToAppSheet(table, payload) {
         try {
-            const headers = {
-                'ApplicationAccessKey': this.appsheetApiKey,
-                'Content-Type': 'application/json'
-            };
-
-            const payload = {
-                'Action': 'Add',
-                'Properties': {
-                    'Locale': 'en-US'
-                },
-                'Rows': [modelData]
-            };
-
-            const response = await axios.post(this.appsheetApiUrl + this.applicationId + '/tables/Mails/Action', payload, { headers });
-            
+            const url = `${this.appsheetApiUrl}${this.applicationId}/tables/${table}/Action`;
+            const headers = this._buildHeaders();
+            const response = await axios.post(url, payload, { headers });
             if (response.status === 200) {
-                console.log('Registro agregado exitosamente en AppSheet');
-                return {
-                    success: true,
-                    data: response.data
-                };
+                return { success: true, data: response.data };
             }
-
-            return {
-                success: false,
-                error: 'Error al agregar registro en AppSheet'
-            };
-
+            return { success: false, error: 'No se pudo registrar el email en AppSheet' };
         } catch (error) {
-            console.error('Error en AppSheet API:', error.message);
-            return {
-                success: false,
-                error: error.message
+            console.error('Error en _postToAppSheet:', error.message, error.response?.data);
+            return { success: false, error: error.message, response: error.response?.data };
+        }
+    }
+
+    async sendResetPasswordEmail(user, token) {
+        try {
+            const resetPasswordUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+            const modelData = {
+                user_fullname: user.name + ' ' + user.lastname,
+                user_email: user.email,
+                url_generated: resetPasswordUrl,
+                sent_at: new Date().toISOString()
             };
+            const payload = this._buildPayload('Add', 'es-AR', modelData);
+            const result = await this._postToAppSheet('ResetPasswordMails', payload);
+            if (result.success) {
+                console.log('ResetPassword email registrado exitosamente en AppSheet');
+                return result;
+            }
+            return result;
+        } catch (error) {
+            console.error('Error en sendResetPasswordEmail:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async sendEmailAppointment(modelData) {
+        try {
+            const payload = this._buildPayload('Add', 'en-US', modelData);
+            const result = await this._postToAppSheet('Mails', payload);
+            if (result.success) {
+                console.log('Registro agregado exitosamente en AppSheet');
+                return result;
+            }
+            return result;
+        } catch (error) {
+            console.error('Error en sendEmailAppointment:', error.message);
+            return { success: false, error: error.message };
         }
     }
 }

@@ -15,7 +15,7 @@ describe('MailService Real API Test', () => {
             created_at: new Date().toISOString()
         };
 
-        const result = await mailService.addRecord(mailData);
+        const result = await mailService.sendEmailAppointment(mailData);
         console.log('API Response:', result);
 
         expect(result).toHaveProperty('success');

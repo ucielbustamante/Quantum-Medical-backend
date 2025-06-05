@@ -1,43 +1,81 @@
 const { User, Patient, Doctor } = require("../models");
 const { StatusCodes } = require("http-status-codes");
 const logger = require("../config/logger");
+const { Op } = require("sequelize");
 
-exports.getAllUsers = async (req, res) => {
+exports.searchUser = async (req, res) => {
   try {
+    const {
+      name,
+      lastname,
+      email,
+      role,
+      dni,
+      limit,
+      offset
+    } = req.body;
+
+    const validKeys = [
+      'name', 'lastname', 'email', 'role', 'dni', 'limit', 'offset'
+    ];
+    const receivedKeys = Object.keys(req.body);
+    const invalidKeys = receivedKeys.filter(key => !validKeys.includes(key));
+    if (invalidKeys.length > 0) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Las keys del body deben ser: ' + validKeys.join(', ')
+      });
+    }
+
+    const userWhere = { is_active: true };
+    if (name) userWhere.name = { [Op.iLike]: `%${name}%` };
+    if (lastname) userWhere.lastname = { [Op.iLike]: `%${lastname}%` };
+    if (email) userWhere.email = email;
+    if (role) userWhere.role = role;
+    if (dni) {
+      if (typeof dni !== 'string') {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: 'El campo "dni" debe ser texto'
+        });
+      }
+      userWhere.dni = dni;
+    }
+
+    const include = [
+      {
+        model: Patient,
+        attributes: ['id', 'health_insurance', 'health_insurance_number', 'birthday'],
+        required: false
+      },
+      {
+        model: Doctor,
+        attributes: ['id', 'license_number'],
+        required: false
+      }
+    ];
+
     const users = await User.findAll({
-      where: { is_active: true },
+      where: userWhere,
+      attributes: ['id', 'name', 'lastname', 'email', 'role', 'dni', 'is_active'],
+      include,
+      limit: limit || 5,
+      offset: offset || 0
     });
 
-    logger.info(`Usuarios consultados exitosamente. Total: ${users.length}`);
-
-    return res.status(StatusCodes.OK).json({
+    res.status(StatusCodes.OK).json({
       statusCode: StatusCodes.OK,
-      data: users,
+      message: 'Usuarios encontrados exitosamente',
+      data: users
     });
   } catch (error) {
-    logger.error(`Error al obtener usuarios: ${error.message}`, { stack: error.stack });
-
-    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+    logger.error(`Error al buscar el usuario: ${error.message}`);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      data: { message: "Error al obtener los usuarios" },
+      message: 'Error al buscar el usuario',
+      error: error.message
     });
   }
-};
-
-exports.getUser = (req, res) => {
-  const user = req.user;
-  res.status(StatusCodes.OK).json({
-    statusCode: StatusCodes.OK,
-    data: { user }
-  });
-};
-
-exports.getUserByEmail = (req, res) => {
-  const user = req.user;
-  res.status(StatusCodes.OK).json({
-    statusCode: StatusCodes.OK,
-    data: { user }
-  });
 };
 
 exports.createUser = async (req, res) => {

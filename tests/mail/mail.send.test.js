@@ -27,7 +27,7 @@ describe('MailService', () => {
             data: { success: true }
         });
 
-        const result = await mailService.addRecord(mockMailData);
+        const result = await mailService.sendEmailAppointment(mockMailData);
 
         expect(axios.post).toHaveBeenCalledWith(
             expect.stringContaining('/tables/Mails/Action'),
@@ -56,7 +56,7 @@ describe('MailService', () => {
         const errorMessage = 'API Error';
         axios.post.mockRejectedValue(new Error(errorMessage));
 
-        const result = await mailService.addRecord(mockMailData);
+        const result = await mailService.sendEmailAppointment(mockMailData);
 
         expect(result).toEqual({
             success: false,
@@ -69,7 +69,7 @@ describe('MailService', () => {
             status: 400
         });
 
-        const result = await mailService.addRecord(mockMailData);
+        const result = await mailService.sendEmailAppointment(mockMailData);
 
         expect(result).toEqual({
             success: false,
@@ -87,7 +87,7 @@ describe('MailService', () => {
             data: { success: true }
         });
 
-        const result = await mailService.addRecord(invalidData);
+        const result = await mailService.sendEmailAppointment(invalidData);
 
         expect(axios.post).toHaveBeenCalledWith(
             expect.any(String),
@@ -113,8 +113,8 @@ describe('MailService', () => {
             patient_email: 'maria@test.com'
         };
 
-        const result1 = await mailService.addRecord(mockMailData);
-        const result2 = await mailService.addRecord(secondMailData);
+        const result1 = await mailService.sendEmailAppointment(mockMailData);
+        const result2 = await mailService.sendEmailAppointment(secondMailData);
 
         expect(result1.success).toBe(true);
         expect(result2.success).toBe(true);

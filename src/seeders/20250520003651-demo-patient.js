@@ -12,6 +12,7 @@ let ids = ["459d9857-d83f-4bb5-a762-f7c1a9b86c83",
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    console.log("Ejecutando seeder de Patients...");
     // Obtener todos los usuarios con rol Patient
     const [patients] = await queryInterface.sequelize.query(
       `SELECT id, email FROM "Users" WHERE role = 'Patient' AND email LIKE 'patient.%';`

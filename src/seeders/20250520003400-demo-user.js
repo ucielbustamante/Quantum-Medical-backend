@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    console.log("Ejecutando seeder de Users...");
     // Emails de prueba ampliados
     const demoEmails = [
       // Doctors

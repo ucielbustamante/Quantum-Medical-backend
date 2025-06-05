@@ -26,4 +26,7 @@ router.get("/google/callback",
   }
 );
 
+router.post("/reset-password", authCtrl.resetPassword);
+router.post("/reset-password/confirm", authCtrl.confirmResetPassword);
+
 module.exports = router;
