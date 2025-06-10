@@ -50,7 +50,9 @@ exports.login = async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
-        accessToken: token
+        accessToken: token,
+        name: user.name,
+        lastname: user.lastname
       }
     });
   } catch (error) {
@@ -104,9 +106,7 @@ exports.register = async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
-        accessToken: token,
-        name: user.name,
-        lastname: user.lastname
+        accessToken: token
       }
     });
   } catch (err) {
