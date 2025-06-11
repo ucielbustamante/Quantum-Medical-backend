@@ -10,5 +10,10 @@ if [ "$RUN_SEEDERS" = "true" ]; then
   npx sequelize-cli db:seed:all
 fi
 
+echo "🧹 Creando carpeta temporal..."
+mkdir -p /app/uploads/temp
+echo "🧹 Limpiando archivos temporales..."
+rm -rf /app/uploads/temp/*
+
 echo "✅ Migraciones y seeders completados, arrancando la app"
 exec "$@"

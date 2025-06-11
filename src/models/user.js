@@ -23,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
     User.hasOne(models.Patient, { foreignKey: "user_id" });
     User.hasOne(models.Doctor, { foreignKey: "user_id" });
     User.hasMany(models.OAuthAccount, { foreignKey: "user_id" });
+    User.hasMany(models.ClinicalDocument, { foreignKey: 'user_id' });
   };
 
   return User;

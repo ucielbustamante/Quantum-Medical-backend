@@ -23,5 +23,7 @@ RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 5000
 
+RUN mkdir -p /app/uploads/temp
+
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["npm", "run", "dev"]
