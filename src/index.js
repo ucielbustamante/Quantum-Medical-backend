@@ -17,6 +17,7 @@ const specialtyRoutes = require('./routes/specialty.routes');
 const doctorSpecialtyRoutes = require('./routes/doctorSpecialty.routes');
 const clinicalRecordRoutes = require('./routes/clinical-record.routes');
 const clinicalDocumentRoutes = require('./routes/clinical-document.routes');
+const doctorAvailabilityRoutes = require('./routes/doctorAvailability.routes');
 
 
 const app = express();
@@ -51,8 +52,12 @@ app.use('/api/users', userRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/logs/frontend', frontendLogRoutes);
-app.use('/api/specialties', specialtyRoutes); //especialidades
-app.use('/api/doctor-specialties', doctorSpecialtyRoutes);// especialidades de doctores
+//especialidades
+app.use('/api/specialties', specialtyRoutes); 
+//especialidades de doctores
+app.use('/api/doctor-specialties', doctorSpecialtyRoutes);
+// Horarios disponibles de Doctores
+app.use('/api', doctorAvailabilityRoutes);
 app.use('/api/clinical-records', clinicalRecordRoutes);
 app.use('/api/clinical-documents', clinicalDocumentRoutes);
 app.get('/metrics', metricsEndpoint);

@@ -4,7 +4,7 @@ const doctorController = require('../controllers/doctor.controller');
 const { verifyToken, isRole } = require("../middlewares/authjwt.middleware");
 
 // Ruta pública: lista todas las Doctores
-router.post('/search', verifyToken, isRole("Admin"), doctorController.searchDoctor);
+router.post('/search', verifyToken, isRole("Admin","Patient"), doctorController.searchDoctor);
 
 // Rutas protegidas: solo ADMIN tiene acceso
 router.put('/:id', verifyToken, isRole("Admin"), findById('Doctor'), doctorController.updateDoctor);

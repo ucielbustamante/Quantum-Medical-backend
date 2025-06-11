@@ -1,8 +1,8 @@
-const { User, Doctor, Patient, ClinicalDocument, ClinicalRecord } = require('../models');
+const { User, Doctor, Patient, ClinicalDocument, ClinicalRecord, DoctorAvailability } = require('../models');
 const { StatusCodes } = require('http-status-codes');
 const logger = require('../config/logger');
 
-const modelMap = { User, Doctor, Patient, ClinicalDocument, ClinicalRecord };
+const modelMap = { User, Doctor, Patient, ClinicalDocument, ClinicalRecord, DoctorAvailability };
 
 function buildInclude(modelName) {
   switch (modelName) {
@@ -31,7 +31,9 @@ function buildInclude(modelName) {
         as: 'User',
         include: [{ model: Doctor, attributes: ['license_number'], required: false }]
       }];
-
+    case 'DoctorAvailability':
+      return [];
+      
     default:
       return [];
   }
