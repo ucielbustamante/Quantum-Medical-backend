@@ -22,6 +22,7 @@ module.exports = (sequelize, DataTypes) => {
     
     // Asociación uno a muchos con DoctorAvailability
     Doctor.hasMany(models.DoctorAvailability, { foreignKey: "doctor_id" });
+    Doctor.hasMany(models.Appointment, { foreignKey: "doctor_id" });
   };
 
   return Doctor;

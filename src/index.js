@@ -4,6 +4,9 @@ const passport = require('passport');
 require('./config/passport.config');
 const logger = require('./config/logger');
 const dbMonitor = require('./config/db-monitor');
+const db = require('./models');
+const checkGdrive = require('./utils/check-gdrive-creds');
+const appointmentGenerator = require('./cron/appointment-generator.cron');
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
@@ -44,6 +47,28 @@ app.use((req, res, next) => {
   
   next();
 });
+
+try {
+    checkGdrive();
+    logger.info('✅ Servicios de Google Drive inicializados');
+
+    const appointmentService = appointmentGenerator({ 
+        DoctorAvailability: db.DoctorAvailability, 
+        Appointment: db.Appointment,
+        sequelize: db.sequelize 
+    });
+
+    appointmentService.runInitialGeneration()
+        .then(() => logger.info('✅ Generador de citas inicializado y programado'))
+        .catch(error => {
+            logger.error(`❌ Error en generación inicial de citas: ${error.message}`);
+            // no terminamos el proceso aca ya que el cron seguira funcionando
+        });
+
+} catch (error) {
+    logger.error(`❌ Error al inicializar servicios: ${error.message}`);
+    process.exit(1);
+}
 
 app.use(metricsMiddleware);
 app.use('/api/auth', authRoutes);

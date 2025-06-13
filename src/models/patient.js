@@ -9,6 +9,7 @@ module.exports = (sequelize, DataTypes) => {
     Patient.associate = models => {
       Patient.belongsTo(models.User, { foreignKey: "user_id" });
       Patient.hasOne(models.ClinicalRecord, { foreignKey: 'patient_id' });
+      Patient.hasMany(models.Appointment, { foreignKey: "patient_id" });
     };
   
     return Patient;
