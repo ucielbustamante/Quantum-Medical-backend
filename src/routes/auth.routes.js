@@ -16,7 +16,7 @@ router.get("/google/callback",
     const authConfig = require("../config/auth.config");
     
     const token = jwt.sign(
-      { id:req.user.id, role:req.user.role },
+      { id:req.user.id, role:req.user.role, firstName:req.user.name, lastName:req.user.lastname},
       authConfig.secret,
       { expiresIn:authConfig.expiresIn }
     );
