@@ -14,57 +14,66 @@ const uuids = [
   "2967986b-5556-40e5-8701-ddbceed0a1a2",
   "fd01fbb6-8e5d-45e3-a01c-5effc345a573",
   "c1d00644-2865-4ef0-b558-52008b20a1e3"
-]
+];
 
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
     console.log("Ejecutando seeder de Doctors...");
-    // Obtener todos los usuarios con rol Doctor
-    const [doctors] = await queryInterface.sequelize.query(
-      `SELECT id, email FROM "Users" WHERE role = 'Doctor' AND email LIKE 'dr.%';`
-    );
 
-    if (doctors.length === 0) {
+    //Listar usuarios con rol Doctor
+    const [users] = await queryInterface.sequelize.query(
+      `SELECT id, email 
+         FROM "Users" 
+        WHERE role = 'Doctor' AND email LIKE 'dr.%';`
+    );
+    if (!users.length) {
       console.log('No se encontraron usuarios con rol Doctor');
       return;
     }
-    const doctorRecords = await Promise.all(doctors.map(async (doctor, i) => {
-      const [existingDoctor] = await queryInterface.sequelize.query(
-        `SELECT id FROM "Doctors" WHERE user_id = '${doctor.id}' LIMIT 1;`
-      );
 
-      if (existingDoctor.length > 0) {
-        console.log(`El doctor ${doctor.email} ya tiene un registro, saltando inserción.`);
-        return null;
-      }
-      const licenseNumber = `DOC-${(1000 + i).toString().padStart(4, '0')}`;
-      return {
-        id: uuids[i],
-        user_id: doctor.id,
-        license_number: licenseNumber,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-    }));
+    //Saber qué IDs ya existen en la tabla Doctors
+    const [existing] = await queryInterface.sequelize.query(
+      `SELECT id 
+         FROM "Doctors" 
+        WHERE id IN (${uuids.map(u => `'${u}'`).join(',')});`
+    );
+    const existingIds = new Set(existing.map(r => r.id));
 
-    // Filtrar los registros nulos (doctores que ya existían)
-    const validRecords = doctorRecords.filter(record => record !== null);
+    //Construir sólo los registros faltantes
+    const records = users
+      .map((user, idx) => {
+        const id = uuids[idx];
+        if (existingIds.has(id)) {
+          console.log(`- Omisión: doctor con id ${id} ya existe`);
+          return null;
+        }
+        return {
+          id,
+          user_id: user.id,
+          license_number: `DOC-${(1000 + idx).toString().padStart(4, '0')}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      })
+      .filter(r => r !== null);
 
-    if (validRecords.length > 0) {
-      await queryInterface.bulkInsert('Doctors', validRecords, {});
-      console.log(`Se insertaron ${validRecords.length} registros de doctores`);
+    // Insertar sólo si hay algo nuevo
+    if (records.length) {
+      await queryInterface.bulkInsert('Doctors', records, {});
+      console.log(`→ Insertados ${records.length} nuevos doctores`);
     } else {
-      console.log('No se insertaron nuevos registros de doctores');
+      console.log('→ No había doctores nuevos para insertar');
     }
   },
 
+  // Eliminar todos los doctores que fueron creados por este seeder
   async down(queryInterface, Sequelize) {
-    // Eliminar todos los doctores que fueron creados por este seeder
-    await queryInterface.bulkDelete('Doctors', {
-      license_number: {
-        [Sequelize.Op.like]: 'DOC-%'
-      }
-    }, {});
+    const Op = Sequelize.Op;
+    await queryInterface.bulkDelete(
+      'Doctors',
+      { id: { [Op.in]: uuids } },
+      {}
+    );
+    console.log('Seeder de Doctors revertido: eliminados los IDs fijos.');
   }
 };
