@@ -21,7 +21,7 @@ const doctorSpecialtyRoutes = require('./routes/doctorSpecialty.routes');
 const clinicalRecordRoutes = require('./routes/clinical-record.routes');
 const clinicalDocumentRoutes = require('./routes/clinical-document.routes');
 const doctorAvailabilityRoutes = require('./routes/doctorAvailability.routes');
-
+const appointmentRoutes = require('./routes/appointment.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -85,6 +85,8 @@ app.use('/api/doctor-specialties', doctorSpecialtyRoutes);
 app.use('/api', doctorAvailabilityRoutes);
 app.use('/api/clinical-records', clinicalRecordRoutes);
 app.use('/api/clinical-documents', clinicalDocumentRoutes);
+// Turnos
+app.use('/api', appointmentRoutes);
 app.get('/metrics', metricsEndpoint);
 app.get('/api/admin/db-stats', isRole("Admin"), (req, res) => {
   const stats = dbMonitor.monitorPoolStatus();
