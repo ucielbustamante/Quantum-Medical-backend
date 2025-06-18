@@ -4,13 +4,15 @@ const { StatusCodes } = require('http-status-codes');
 
 /**
  * Verifica si ya existe una cita solapada para un doctor
- * en una fecha y rango horario dado.
+ * en una fecha y rango horario dado,
+ * Además ignora si esta cancelada con el helper
  */
 async function hasOverlap(doctorId, date, start, end) {
   const overlap = await Appointment.findOne({
     where: {
       doctor_id: doctorId,
       date,
+      status:{ [Op.ne]: 'cancelled' }, // excluyo citas canceladas
       [Op.or]: [
         { start_time: { [Op.between]: [start, end] } },
         { end_time:   { [Op.between]: [start, end] } }
@@ -25,6 +27,8 @@ module.exports = {
    * POST /api/appointments
    * - Patient crea su propia cita.
    * - Admin crea cita para cualquier patient_id que envíe en el body.
+   * - Se pueden volver a tomar los turnos cancelados
+   * - El turno debe tener 24js de anticipacion
    */
   createAppointment: async (req, res) => {
     try {
@@ -35,6 +39,18 @@ module.exports = {
         end_time,
         patient_id: bodyPatientId
       } = req.body;
+
+      //Validar que la reserva sea con 24 h de anticipación
+      const now       = Date.now();
+      const minTime   = now + 24 * 60 * 60 * 1000;            // +24 h
+      const startDate = new Date(`${date}T${start_time}`).getTime();
+      if (startDate < minTime) {
+        return res
+          .status(StatusCodes.UNPROCESSABLE_ENTITY)
+          .json({
+            message: 'Debe pedir el turno con al menos 24 h de anticipación'
+          });
+      }
 
       //Determinar patient_id según rol
       let patient_id;
@@ -53,7 +69,7 @@ module.exports = {
         patient_id = bodyPatientId;
 
       } else {
-        // traducir User.id → Patient.id
+        //traducir User.id → Patient.id
         const me = await Patient.findOne({ where: { user_id: req.userId } });
         if (!me) {
           return res
@@ -63,7 +79,7 @@ module.exports = {
         patient_id = me.id;
       }
 
-      //Validar disponibilidad de ese doctor para fecha y horario
+      //Validar que el doctor tenga disponibilidad en ese día y horario
       const weekday = new Date(date).getDay();
       const av = await DoctorAvailability.findOne({
         where: {
@@ -79,7 +95,7 @@ module.exports = {
           .json({ message: 'Horario no disponible para este doctor' });
       }
 
-      //Verificar solapamiento
+      //Verificar que no exista solapamiento con citas activas
       if (await hasOverlap(doctor_id, date, start_time, end_time)) {
         return res
           .status(StatusCodes.CONFLICT)
@@ -94,6 +110,7 @@ module.exports = {
         start_time,
         end_time
       });
+
       return res
         .status(StatusCodes.CREATED)
         .json({ data: appt });
@@ -212,8 +229,13 @@ module.exports = {
           .status(StatusCodes.NOT_FOUND)
           .json({ message: 'Cita no encontrada' });
       }
-      await appt.destroy();
+      //soft-cancel: desvincula paciente y cambia el estado del turno
+      appt.patient_id = null;
+      appt.status     = 'cancelled';
+      await appt.save();
+      //204 sin cuerpo:
       return res.sendStatus(StatusCodes.NO_CONTENT);
+
     } catch (err) {
       console.error('Error en cancelAppointment:', err);
       return res
