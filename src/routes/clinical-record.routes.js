@@ -5,9 +5,9 @@ const { verifyToken, isRole } = require("../middlewares/authjwt.middleware");
 const { findById } = require("../middlewares/search.middleware");
 
 router.post("/", verifyToken, isRole("Doctor", "Admin"), clinicalRecordController.createClinicalRecord);
-router.get("/:id", verifyToken, findById('ClinicalRecord'), clinicalRecordController.getClinicalRecord);
+router.get("/:id", verifyToken, isRole("Patient", "Doctor", "Admin"), findById('ClinicalRecord'), clinicalRecordController.getClinicalRecord);
 router.put("/:id", verifyToken, isRole("Doctor", "Admin"), findById('ClinicalRecord'), clinicalRecordController.updateClinicalRecord);
 router.delete("/:id", verifyToken, isRole("Doctor", "Admin"), findById('ClinicalRecord'), clinicalRecordController.deleteClinicalRecord);
-router.get("/", verifyToken, isRole("Doctor", "Admin"), findById('ClinicalRecord'), clinicalRecordController.searchClinicalRecords);
+router.get("/", verifyToken, isRole("Patient", "Doctor", "Admin"), clinicalRecordController.searchClinicalRecords);
 
 module.exports = router;

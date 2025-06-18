@@ -72,6 +72,21 @@ exports.createClinicalRecord = async (req, res) => {
 exports.getClinicalRecord = async (req, res) => {
     try {
         const clinical_record = req.clinicalRecord;
+        
+        // Verificar que el paciente solo puede ver sus propios registros
+        if (req.userRole === 'Patient') {
+            const patient = await Patient.findOne({
+                where: { user_id: req.userId }
+            });
+            
+            if (!patient || clinical_record.patient_id !== patient.id) {
+                return res.status(StatusCodes.FORBIDDEN).json({
+                    statusCode: StatusCodes.FORBIDDEN,
+                    data: { message: "No tienes permiso para ver este registro clínico" }
+                });
+            }
+        }
+        
         const clinicalRecord = await ClinicalRecord.findOne({
             where: { id: clinical_record.id },
             include: [
@@ -201,7 +216,26 @@ exports.searchClinicalRecords = async (req, res) => {
         } = req.query;
 
         const where = {};
-        if (patient_id) where.patient_id = patient_id;
+        
+        // Si es un paciente, solo puede ver sus propios registros
+        if (req.userRole === 'Patient') {
+            const patient = await Patient.findOne({
+                where: { user_id: req.userId }
+            });
+            
+            if (!patient) {
+                return res.status(StatusCodes.NOT_FOUND).json({
+                    statusCode: StatusCodes.NOT_FOUND,
+                    data: { message: "Perfil de paciente no encontrado" }
+                });
+            }
+            
+            where.patient_id = patient.id;
+        } else if (patient_id) {
+            // Para doctores y admins, pueden filtrar por patient_id si se especifica
+            where.patient_id = patient_id;
+        }
+        
         if (title) where.title = { [Op.iLike]: `%${title}%` };
 
         const clinicalRecords = await ClinicalRecord.findAndCountAll({

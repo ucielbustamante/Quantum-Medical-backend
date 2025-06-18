@@ -1,4 +1,4 @@
-const { Appointment, DoctorAvailability, Patient } = require('../models');
+const { Appointment, DoctorAvailability, Patient, Doctor, User, Specialty } = require('../models');
 const { Op } = require('sequelize');
 const { StatusCodes } = require('http-status-codes');
 const emailService = require('../services/mail.service');
@@ -126,7 +126,8 @@ module.exports = {
         patient_id,
         date,
         start_time,
-        end_time
+        end_time,
+        status: 'confirmed' // Estado por defecto
       });
 
       // Vuelve a consultar el appointment con las asociaciones necesarias
@@ -201,6 +202,15 @@ module.exports = {
       const { patientId } = req.params;
       const list = await Appointment.findAll({
         where: { patient_id: patientId },
+        include: [
+          {
+            model: Doctor,
+            include: [
+              { model: User, attributes: ['name', 'lastname', 'email'] },
+              { model: Specialty, attributes: ['name'] }
+            ]
+          }
+        ],
         order: [['date','ASC'], ['start_time','ASC']]
       });
 
@@ -265,7 +275,7 @@ module.exports = {
   /**
    * GET /api/doctors/:id/available-slots
    * Obtiene los turnos disponibles de un doctor en un rango de fechas
-   * Los turnos están disponibles cuando patient_id es null (no reservados)
+   * Genera los slots basándose en la disponibilidad del doctor
    */
   getAvailableSlots: async (req, res) => {
     try {
@@ -301,30 +311,76 @@ module.exports = {
           });
       }
 
-      // Buscar appointments disponibles (patient_id null y status pending)
-      const availableAppointments = await Appointment.findAll({
-        where: {
-          doctor_id: doctor.id,
-          date: {
-            [Op.between]: [start, end]
-          },
-          patient_id: null, // No reservado
-          status: 'pending' // Estado pendiente (disponible)
-        },
-        order: [['date', 'ASC'], ['start_time', 'ASC']],
-        attributes: ['id', 'date', 'start_time', 'end_time']
+      // Obtener la disponibilidad del doctor
+      const availability = await DoctorAvailability.findAll({
+        where: { doctor_id: doctor.id }
       });
 
-      // Formatear la respuesta
-      const availableSlots = availableAppointments.map(appt => ({
-        id: appt.id,
-        date: appt.date.toISOString().split('T')[0],
-        start_time: appt.start_time,
-        end_time: appt.end_time,
-        duration_minutes: Math.round(
-          (new Date(`2000-01-01T${appt.end_time}`) - new Date(`2000-01-01T${appt.start_time}`)) / 60000
-        )
-      }));
+      if (availability.length === 0) {
+        return res
+          .status(StatusCodes.OK)
+          .json({ 
+            data: [],
+            total: 0,
+            message: 'El doctor no tiene horarios de disponibilidad configurados'
+          });
+      }
+
+      // Generar slots disponibles para cada día en el rango
+      const availableSlots = [];
+      const currentDate = new Date(start);
+      
+      while (currentDate <= end) {
+        const weekday = currentDate.getDay();
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        // Buscar disponibilidad para este día de la semana
+        const dayAvailability = availability.filter(av => av.weekday === weekday);
+        
+        for (const av of dayAvailability) {
+          // Generar slots de 30 minutos dentro del horario disponible
+          const startTime = new Date(`2000-01-01T${av.start_time}`);
+          const endTime = new Date(`2000-01-01T${av.end_time}`);
+          const slotDuration = av.slot_duration_min || 30; // Default 30 minutos
+          
+          let currentSlot = new Date(startTime);
+          
+          while (currentSlot < endTime) {
+            const slotEnd = new Date(currentSlot.getTime() + slotDuration * 60000);
+            
+            if (slotEnd <= endTime) {
+              const startTimeStr = currentSlot.toTimeString().slice(0, 5);
+              const endTimeStr = slotEnd.toTimeString().slice(0, 5);
+              
+              // Verificar si este slot ya está reservado
+              const existingAppointment = await Appointment.findOne({
+                where: {
+                  doctor_id: doctor.id,
+                  date: dateStr,
+                  start_time: startTimeStr,
+                  end_time: endTimeStr,
+                  status: { [Op.ne]: 'cancelled' }
+                }
+              });
+              
+              // Solo incluir slots que no estén reservados
+              if (!existingAppointment) {
+                availableSlots.push({
+                  id: `slot_${dateStr}_${startTimeStr}`,
+                  date: dateStr,
+                  start_time: startTimeStr,
+                  end_time: endTimeStr,
+                  duration_minutes: slotDuration
+                });
+              }
+            }
+            
+            currentSlot = slotEnd;
+          }
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
 
       return res
         .status(StatusCodes.OK)
