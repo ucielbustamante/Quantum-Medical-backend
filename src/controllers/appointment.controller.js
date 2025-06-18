@@ -23,6 +23,23 @@ async function hasOverlap(doctorId, date, start, end) {
 }
 
 module.exports = {
+
+  getAppointments: async (req, res) => {
+    try {
+      const { doctorId } = req.params;
+      const appointments = await Appointment.findAll({
+        where: {
+          status: { [Op.ne]: 'pending' },
+          patient_id: { [Op.ne]: null }
+        }
+      });
+      return res.status(StatusCodes.OK).json({ data: appointments });
+    } catch (err) {
+      console.error('Error en getAppointments:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: 'Error interno del servidor' });
+    }
+  },
+  
   /**
    * POST /api/appointments
    * - Patient crea su propia turno.
@@ -210,6 +227,85 @@ module.exports = {
 
     } catch (err) {
       console.error('Error en updateStatus:', err);
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Error interno del servidor' });
+    }
+  },
+
+  /**
+   * GET /api/doctors/:id/available-slots
+   * Obtiene los turnos disponibles de un doctor en un rango de fechas
+   * Los turnos están disponibles cuando patient_id es null (no reservados)
+   */
+  getAvailableSlots: async (req, res) => {
+    try {
+      const { doctor } = req;
+      const { startDate, endDate } = req.query;
+
+      // Validar parámetros requeridos
+      if (!startDate || !endDate) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json({ 
+            message: 'Se requieren los parámetros startDate y endDate (YYYY-MM-DD)' 
+          });
+      }
+
+      // Validar formato de fechas
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json({ 
+            message: 'Formato de fecha inválido. Use YYYY-MM-DD' 
+          });
+      }
+
+      if (start > end) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json({ 
+            message: 'startDate debe ser anterior o igual a endDate' 
+          });
+      }
+
+      // Buscar appointments disponibles (patient_id null y status pending)
+      const availableAppointments = await Appointment.findAll({
+        where: {
+          doctor_id: doctor.id,
+          date: {
+            [Op.between]: [start, end]
+          },
+          patient_id: null, // No reservado
+          status: 'pending' // Estado pendiente (disponible)
+        },
+        order: [['date', 'ASC'], ['start_time', 'ASC']],
+        attributes: ['id', 'date', 'start_time', 'end_time']
+      });
+
+      // Formatear la respuesta
+      const availableSlots = availableAppointments.map(appt => ({
+        id: appt.id,
+        date: appt.date.toISOString().split('T')[0],
+        start_time: appt.start_time,
+        end_time: appt.end_time,
+        duration_minutes: Math.round(
+          (new Date(`2000-01-01T${appt.end_time}`) - new Date(`2000-01-01T${appt.start_time}`)) / 60000
+        )
+      }));
+
+      return res
+        .status(StatusCodes.OK)
+        .json({ 
+          data: availableSlots,
+          total: availableSlots.length
+        });
+
+    } catch (err) {
+      console.error('Error en getAvailableSlots:', err);
       return res
         .status(StatusCodes.INTERNAL_SERVER_ERROR)
         .json({ message: 'Error interno del servidor' });

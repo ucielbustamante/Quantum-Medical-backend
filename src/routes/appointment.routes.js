@@ -5,6 +5,7 @@ const {
   doctorSelfOrAdmin, 
   appointmentDoctorOrAdmin 
 } = require('../middlewares/authorization.middleware');
+const { findById } = require('../middlewares/search.middleware');
 const ctrl = require('../controllers/appointment.controller');
 
 // POST /appointments
@@ -33,6 +34,15 @@ router.get(
   '/doctors/:doctorId/appointments',
   [ authJwt.verifyToken, doctorSelfOrAdmin ],
   ctrl.getAppointmentsByDoctor
+);
+
+// GET /doctors/:doctorId/available-slots
+// Roles permitidos: Patient, Doctor, Admin
+// Obtiene los turnos disponibles de un doctor en un rango de fechas
+router.get(
+  '/doctors/:id/available-slots',
+  [ authJwt.verifyToken, authJwt.isRole('Patient','Doctor','Admin'), findById('Doctor') ],
+  ctrl.getAvailableSlots
 );
 
 // PATCH /appointments/:id/status

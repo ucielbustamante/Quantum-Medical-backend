@@ -108,6 +108,67 @@ PUT    /api/specialties/:id            # Actualizar especialidad (Admin)
 DELETE /api/specialties/:id            # Eliminar especialidad (Admin)
 ```
 
+### Endpoints de Citas (Appointments)
+
+#### Obtener Slots Disponibles de un Doctor
+**GET** `/api/doctors/:id/available-slots`
+
+Obtiene todos los turnos disponibles de un doctor en un rango de fechas específico. Los turnos están disponibles cuando `patient_id` es `null` (no reservados) y tienen status `pending`.
+
+**Parámetros de URL:**
+- `id` (UUID): ID del doctor
+
+**Query Parameters:**
+- `startDate` (string, requerido): Fecha de inicio en formato YYYY-MM-DD
+- `endDate` (string, requerido): Fecha de fin en formato YYYY-MM-DD
+
+**Roles permitidos:** Patient, Doctor, Admin
+
+**Ejemplo de uso:**
+```bash
+GET /api/doctors/123e4567-e89b-12d3-a456-426614174000/available-slots?startDate=2024-01-15&endDate=2024-01-20
+```
+
+**Respuesta exitosa (200):**
+```json
+{
+  "data": [
+    {
+      "id": "appointment-uuid",
+      "date": "2024-01-15",
+      "start_time": "09:00:00",
+      "end_time": "09:30:00",
+      "duration_minutes": 30
+    },
+    {
+      "id": "appointment-uuid-2",
+      "date": "2024-01-15",
+      "start_time": "09:30:00",
+      "end_time": "10:00:00",
+      "duration_minutes": 30
+    }
+  ],
+  "total": 2
+}
+```
+
+**Respuesta cuando no hay turnos disponibles (200):**
+```json
+{
+  "data": [],
+  "total": 0
+}
+```
+
+**Nota:** Los turnos se generan automáticamente mediante un cron job basándose en la configuración de disponibilidad del doctor. Este endpoint solo retorna los appointments que están disponibles para reservar.
+
+**Errores posibles:**
+- `400`: Parámetros faltantes o formato de fecha inválido
+- `404`: Doctor no encontrado
+- `401`: No autenticado
+- `403`: Rol no autorizado
+- `500`: Error interno del servidor
+
 ## 🔧 Configuración y Despliegue
 
 ### 📋 Prerrequisitos
