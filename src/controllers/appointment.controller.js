@@ -1,6 +1,7 @@
 const { Appointment, DoctorAvailability, Patient } = require('../models');
 const { Op } = require('sequelize');
 const { StatusCodes } = require('http-status-codes');
+const emailService = require('../services/mail.service');
 
 /**
  * Verifica si ya existe una turno solapada para un doctor
@@ -128,9 +129,37 @@ module.exports = {
         end_time
       });
 
+      // Vuelve a consultar el appointment con las asociaciones necesarias
+      const apptFull = await Appointment.findOne({
+        where: { id: appt.id },
+        include: [
+          {
+            model: Patient,
+            include: [{ model: require('../models').User, attributes: ['name', 'email'] }]
+          },
+          {
+            model: require('../models').Doctor,
+            include: [{ model: require('../models').User, attributes: ['name', 'email'] }]
+          }
+        ]
+      });
+
+      const mailData = {
+        patient_name: apptFull.Patient?.User?.name,
+        patient_email: apptFull.Patient?.User?.email,
+        speciality_name: apptFull.Doctor?.speciality,
+        doctor_name: apptFull.Doctor?.User?.name,
+        doctor_email: apptFull.Doctor?.User?.email,
+        start_date: apptFull.date,
+        end_date: apptFull.end_time,
+        modality: apptFull.modality,
+        location: apptFull.location,
+        created_at: apptFull.created_at
+      };
+      emailService.sendEmailAppointment(mailData);
       return res
         .status(StatusCodes.CREATED)
-        .json({ data: appt });
+        .json({ data: apptFull });
 
     } catch (err) {
       console.error('Error en createAppointment:', err);

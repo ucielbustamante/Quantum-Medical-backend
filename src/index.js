@@ -1,13 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
-require('./config/passport.config');
 const logger = require('./config/logger');
 const dbMonitor = require('./config/db-monitor');
 const db = require('./models');
 const checkGdrive = require('./utils/check-gdrive-creds');
 const appointmentGenerator = require('./cron/appointment-generator.cron');
-
+require('./config/passport.config');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const doctorRoutes = require('./routes/doctor.routes');
