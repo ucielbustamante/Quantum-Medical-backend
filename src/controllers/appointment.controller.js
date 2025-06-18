@@ -3,7 +3,7 @@ const { Op } = require('sequelize');
 const { StatusCodes } = require('http-status-codes');
 
 /**
- * Verifica si ya existe una cita solapada para un doctor
+ * Verifica si ya existe una turno solapada para un doctor
  * en una fecha y rango horario dado,
  * Además ignora si esta cancelada con el helper
  */
@@ -12,7 +12,7 @@ async function hasOverlap(doctorId, date, start, end) {
     where: {
       doctor_id: doctorId,
       date,
-      status:{ [Op.ne]: 'cancelled' }, // excluyo citas canceladas
+      status:{ [Op.ne]: 'cancelled' }, // excluyo turnos canceladas
       [Op.or]: [
         { start_time: { [Op.between]: [start, end] } },
         { end_time:   { [Op.between]: [start, end] } }
@@ -25,8 +25,8 @@ async function hasOverlap(doctorId, date, start, end) {
 module.exports = {
   /**
    * POST /api/appointments
-   * - Patient crea su propia cita.
-   * - Admin crea cita para cualquier patient_id que envíe en el body.
+   * - Patient crea su propia turno.
+   * - Admin crea turno para cualquier patient_id que envíe en el body.
    * - Se pueden volver a tomar los turnos cancelados
    * - El turno debe tener 24js de anticipacion
    */
@@ -95,14 +95,14 @@ module.exports = {
           .json({ message: 'Horario no disponible para este doctor' });
       }
 
-      //Verificar que no exista solapamiento con citas activas
+      //Verificar que no exista solapamiento con turnos activas
       if (await hasOverlap(doctor_id, date, start_time, end_time)) {
         return res
           .status(StatusCodes.CONFLICT)
           .json({ message: 'Turno ya ocupado para ese rango horario' });
       }
 
-      //Crear la cita
+      //Crear la turno
       const appt = await Appointment.create({
         doctor_id,
         patient_id,
@@ -125,7 +125,7 @@ module.exports = {
 
   /**
    * GET /api/doctors/:doctorId/appointments
-   * Listar todas las citas de un doctor.
+   * Listar todas las turnos de un doctor.
    */
   getAppointmentsByDoctor: async (req, res) => {
     try {
@@ -147,8 +147,8 @@ module.exports = {
 
   /**
    * GET /api/patients/:patientId/appointments
-   * Listar todas las citas de un paciente.
-   * Si no hay citas, devolvemos mensaje pero mantenemos data:[]
+   * Listar todas las turnos de un paciente.
+   * Si no hay turnos, devolvemos mensaje pero mantenemos data:[]
    */
   getAppointmentsByPatient: async (req, res) => {
     try {
@@ -181,7 +181,7 @@ module.exports = {
   /**
    * PATCH /api/appointments/:id/status
    * Actualizar el estado (pending|confirmed|cancelled)
-   * Solo puede hacerlo el doctor dueño de la cita o Admin.
+   * Solo puede hacerlo el doctor dueño de la turno o Admin.
    */
   updateStatus: async (req, res) => {
     try {
@@ -199,7 +199,7 @@ module.exports = {
       if (!appt) {
         return res
           .status(StatusCodes.NOT_FOUND)
-          .json({ message: 'Cita no encontrada' });
+          .json({ message: 'turno no encontrada' });
       }
 
       appt.status = status;
@@ -218,7 +218,7 @@ module.exports = {
 
   /**
    * DELETE /api/appointments/:id
-   * Eliminar una cita (solo Admin), retorna 204 sin cuerpo.
+   * Eliminar una turno (solo Admin), retorna 204 sin cuerpo.
    */
   cancelAppointment: async (req, res) => {
     try {
@@ -227,7 +227,7 @@ module.exports = {
       if (!appt) {
         return res
           .status(StatusCodes.NOT_FOUND)
-          .json({ message: 'Cita no encontrada' });
+          .json({ message: 'turno no encontrada' });
       }
       //soft-cancel: desvincula paciente y cambia el estado del turno
       appt.patient_id = null;
