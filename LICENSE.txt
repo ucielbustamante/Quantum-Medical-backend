@@ -1,0 +1,9 @@
+Este proyecto está licenciado bajo la Licencia Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0).
+
+Puede copiar, distribuir y modificar este trabajo siempre que:
+- Dé crédito a los autores originales: Uciel Bustamante, Nahuel Martinez, Micaela Galeano, Juan Iturrart.
+- No lo utilice con fines comerciales.
+- Comparta cualquier versión derivada bajo esta misma licencia.
+
+Para ver una copia de esta licencia, visite:
+https://creativecommons.org/licenses/by-nc-sa/4.0/
