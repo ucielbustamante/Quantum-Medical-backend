@@ -98,3 +98,50 @@ exports.appointmentDoctorOrAdmin = async (req, res, next) => {
       .json({ message: 'Server error' });
   }
 };
+
+exports.authorizeClinicalRecordAccess = async (req, res, next) => {
+  try {
+    const userRole = req.userRole;
+    const userId = req.userId;
+
+    if (userRole === 'Admin' || userRole === 'Doctor') {
+      return next();
+    }
+
+    // Pacientes: Solo pueden ver sus propios registros
+    if (userRole === 'Patient') {
+      const patient = await Patient.findOne({ where: { user_id: userId } });
+
+      if (!patient) {
+        logger.warn(`Perfil de paciente no encontrado para user_id=${userId}`);
+        return res.status(StatusCodes.FORBIDDEN).json({
+          statusCode: StatusCodes.FORBIDDEN,
+          data: { message: "No tienes un perfil de paciente asociado." }
+        });
+      }
+
+      if (!req.query.patient_id || req.query.patient_id === patient.id.toString()) {
+        req.query.patient_id = patient.id.toString(); // Aseguramos que solo vea los suyos
+        return next();
+      } else {
+        // Si el paciente intenta acceder a un patient_id que no es el suyo
+        logger.warn(`Paciente ${userId} intentó acceder a registros de patient_id=${req.query.patient_id}`);
+        return res.status(StatusCodes.FORBIDDEN).json({
+          statusCode: StatusCodes.FORBIDDEN,
+          data: { message: "Acceso denegado. No tienes permiso para ver registros de otros pacientes." }
+        });
+      }
+    }
+
+    return res.status(StatusCodes.FORBIDDEN).json({
+      statusCode: StatusCodes.FORBIDDEN,
+      data: { message: "Acceso denegado. Rol no autorizado para esta acción." }
+    });
+  } catch (err) {
+    logger.error(`Error en authorizeClinicalRecordAccess: ${err.message}`);
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      data: { message: "Error interno del servidor al verificar permisos." }
+    });
+  }
+};
