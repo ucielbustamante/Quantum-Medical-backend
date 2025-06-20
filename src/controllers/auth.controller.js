@@ -37,7 +37,7 @@ exports.login = async (req, res) => {
       logger.warn(`Intento de login fallido - contraseña inválida para: ${user.email}`);
       return res.status(StatusCodes.UNAUTHORIZED).json({ 
         statusCode: StatusCodes.UNAUTHORIZED,
-        data: { message: "Contraseña inválida" }
+        data: { message: "La contraseña ingresada es incorrecta. Verifica tu contraseña e intenta nuevamente." }
       });
     }
 

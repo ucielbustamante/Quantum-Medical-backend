@@ -13,7 +13,17 @@ exports.uploadDocument = async (req, res) => {
         }
 
         const clinical_record = req.clinicalRecord;
-        const { description, user_id } = req.body;
+        const { description } = req.body;
+        const user_id = req.userId;
+        if (!user_id) {
+            console.error('User ID is empty or invalid');
+            // Limpiar el archivo temporal
+            await fileService.deleteFile(req.file.path).catch(console.error);
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                statusCode: StatusCodes.BAD_REQUEST,
+                data: { message: "ID de usuario no válido" }
+            });
+        }
 
         // Verificar que el registro clínico existe
         const clinicalRecord = await ClinicalRecord.findOne({

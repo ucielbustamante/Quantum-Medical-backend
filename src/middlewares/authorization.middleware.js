@@ -4,20 +4,23 @@ const logger = require('../config/logger');
 
 exports.patientSelfOrAdmin = async (req, res, next) => {
   try {
-    // 1) Admin siempre pasa
-    if (req.userRole === 'Admin') return next();
+    if (req.userRole === 'Admin') {
+      logger.info('Admin access granted');
+      return next();
+    }
 
     // 2) Si no es Patient, denegar de una
     if (req.userRole !== 'Patient') {
+      logger.info('Access denied: user role is not Patient');
       return res
         .status(StatusCodes.FORBIDDEN)
         .json({ message: 'Forbidden' });
     }
 
     // 3) Buscar la entidad Patient para este user
-    const me = await Patient.findOne({ where: { user_id: req.userId } });
+    const me = await Patient.findOne({ where: { user_id: req.userId } });    
     if (!me) {
-      logger.warn(`Patient no encontrado para user_id=${req.userId}`);
+      logger.info(`Patient no encontrado para user_id=${req.userId}`);
       return res
         .status(StatusCodes.FORBIDDEN)
         .json({ message: 'Forbidden' });
@@ -25,8 +28,10 @@ exports.patientSelfOrAdmin = async (req, res, next) => {
 
     // 4) Verificar que el param coincide con mi Patient.id
     if (me.id === req.params.patientId) {
+      logger.info(`Patient access granted: ${me.id} matches ${req.params.patientId}`);
       return next();
     }
+    logger.info(`Access denied: patient ID ${me.id} does not match requested ${req.params.patientId}`);
     return res
       .status(StatusCodes.FORBIDDEN)
       .json({ message: 'Forbidden' });
@@ -40,8 +45,13 @@ exports.patientSelfOrAdmin = async (req, res, next) => {
 
 exports.doctorSelfOrAdmin = async (req, res, next) => {
   try {
-    if (req.userRole === 'Admin') return next();
+    if (req.userRole === 'Admin') {
+      logger.info('Admin access granted');
+      return next();
+    }
+    
     if (req.userRole !== 'Doctor') {
+      logger.info('Access denied: user role is not Doctor');
       return res
         .status(StatusCodes.FORBIDDEN)
         .json({ message: 'Forbidden' });
@@ -49,14 +59,16 @@ exports.doctorSelfOrAdmin = async (req, res, next) => {
 
     const me = await Doctor.findOne({ where: { user_id: req.userId } });
     if (!me) {
-      logger.warn(`Doctor no encontrado para user_id=${req.userId}`);
+      logger.info(`Doctor no encontrado para user_id=${req.userId}`);
       return res
         .status(StatusCodes.FORBIDDEN)
         .json({ message: 'Forbidden' });
     }
+    
     if (me.id === req.params.doctorId) {
       return next();
     }
+    
     return res
       .status(StatusCodes.FORBIDDEN)
       .json({ message: 'Forbidden' });
@@ -96,52 +108,5 @@ exports.appointmentDoctorOrAdmin = async (req, res, next) => {
     return res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ message: 'Server error' });
-  }
-};
-
-exports.authorizeClinicalRecordAccess = async (req, res, next) => {
-  try {
-    const userRole = req.userRole;
-    const userId = req.userId;
-
-    if (userRole === 'Admin' || userRole === 'Doctor') {
-      return next();
-    }
-
-    // Pacientes: Solo pueden ver sus propios registros
-    if (userRole === 'Patient') {
-      const patient = await Patient.findOne({ where: { user_id: userId } });
-
-      if (!patient) {
-        logger.warn(`Perfil de paciente no encontrado para user_id=${userId}`);
-        return res.status(StatusCodes.FORBIDDEN).json({
-          statusCode: StatusCodes.FORBIDDEN,
-          data: { message: "No tienes un perfil de paciente asociado." }
-        });
-      }
-
-      if (!req.query.patient_id || req.query.patient_id === patient.id.toString()) {
-        req.query.patient_id = patient.id.toString(); // Aseguramos que solo vea los suyos
-        return next();
-      } else {
-        // Si el paciente intenta acceder a un patient_id que no es el suyo
-        logger.warn(`Paciente ${userId} intentó acceder a registros de patient_id=${req.query.patient_id}`);
-        return res.status(StatusCodes.FORBIDDEN).json({
-          statusCode: StatusCodes.FORBIDDEN,
-          data: { message: "Acceso denegado. No tienes permiso para ver registros de otros pacientes." }
-        });
-      }
-    }
-
-    return res.status(StatusCodes.FORBIDDEN).json({
-      statusCode: StatusCodes.FORBIDDEN,
-      data: { message: "Acceso denegado. Rol no autorizado para esta acción." }
-    });
-  } catch (err) {
-    logger.error(`Error en authorizeClinicalRecordAccess: ${err.message}`);
-    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      data: { message: "Error interno del servidor al verificar permisos." }
-    });
   }
 };

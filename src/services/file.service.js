@@ -26,7 +26,7 @@ class FileService {
     const client = await auth.getClient();
     this.drive = google.drive({ version: 'v3', auth: client });
 
-    console.log('[FileService] Google Drive inicializado');
+    logger.info('[FileService] Google Drive inicializado');
   }
 
   async uploadFile(file, clinicalRecordId, user_id, description = '') {
@@ -114,20 +114,31 @@ class FileService {
       include: [{ model: User, attributes: ['id', 'name', 'lastname', 'role', 'is_active'] }]
     });
 
-    const { data } = await this.drive.files.list({
-      q: `parents in '${this.folderId}'`,
-      fields: 'files(id,name,mimeType,size,webContentLink,thumbnailLink,createdTime,modifiedTime)'
-    });
+    try {
+      const { data } = await this.drive.files.list({
+        q: `parents in '${this.folderId}'`,
+        fields: 'files(id,name,mimeType,size,webContentLink,thumbnailLink,createdTime,modifiedTime)'
+      });
 
-    const driveMap = new Map(data.files.map(f => [f.id, f]));
+      const driveMap = new Map(data.files.map(f => [f.id, f]));
 
-    return dbDocs.map(doc => {
-      const driveId = this.extractDriveFileId(doc.file_id);
-      return {
+      const result = dbDocs.map(doc => {
+        const driveId = this.extractDriveFileId(doc.file_id);
+        return {
+          ...doc.toJSON(),
+          drive: driveMap.get(driveId) || null
+        };
+      });
+
+      return result;
+    } catch (error) {
+      // Si hay error con Google Drive, devolver solo los documentos de la BD
+      const result = dbDocs.map(doc => ({
         ...doc.toJSON(),
-        drive: driveMap.get(driveId) || null
-      };
-    });
+        drive: null
+      }));
+      return result;
+    }
   }
 
   extractDriveFileId(str = '') {

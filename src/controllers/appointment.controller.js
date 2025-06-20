@@ -1,6 +1,7 @@
-const { Appointment, DoctorAvailability, Patient, Doctor, User } = require('../models');
+const { Appointment, DoctorAvailability, Patient, Doctor, User, Specialty } = require('../models');
 const { Op } = require('sequelize');
 const { StatusCodes } = require('http-status-codes');
+const emailService = require('../services/mail.service');
 
 /**
  * Verifica si ya existe una turno solapada para un doctor
@@ -12,17 +13,41 @@ async function hasOverlap(doctorId, date, start, end) {
     where: {
       doctor_id: doctorId,
       date,
-      status:{ [Op.ne]: 'cancelled' }, // excluyo turnos canceladas
-      [Op.or]: [
-        { start_time: { [Op.between]: [start, end] } },
-        { end_time:   { [Op.between]: [start, end] } }
-      ]
+      status: { [Op.ne]: 'cancelled' },
+      start_time: { [Op.lt]: end },
+      end_time:   { [Op.gt]: start }
     }
   });
   return !!overlap;
 }
 
 module.exports = {
+
+  getAppointments: async (req, res) => {
+    try {
+      const appointments = await Appointment.findAll({
+        where: {
+          patient_id: { [Op.ne]: null }
+        },
+        include: [
+          {
+            model: Patient,
+            include: [{ model: User, attributes: ['name', 'lastname', 'email'] }]
+          },
+          {
+            model: Doctor,
+            include: [{ model: User, attributes: ['name', 'lastname', 'email'] }]
+          }
+        ],
+        order: [['date','ASC'], ['start_time','ASC']]
+      });
+      return res.status(StatusCodes.OK).json({ data: appointments });
+    } catch (err) {
+      console.error('Error en getAppointments:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: 'Error interno del servidor' });
+    }
+  },
+  
   /**
    * POST /api/appointments
    * - Patient crea su propia turno.
@@ -108,12 +133,41 @@ module.exports = {
         patient_id,
         date,
         start_time,
-        end_time
+        end_time,
+        status: 'confirmed' // Estado por defecto
       });
 
+      // Vuelve a consultar el appointment con las asociaciones necesarias
+      const apptFull = await Appointment.findOne({
+        where: { id: appt.id },
+        include: [
+          {
+            model: Patient,
+            include: [{ model: require('../models').User, attributes: ['name', 'email'] }]
+          },
+          {
+            model: require('../models').Doctor,
+            include: [{ model: require('../models').User, attributes: ['name', 'email'] }]
+          }
+        ]
+      });
+
+      const mailData = {
+        patient_name: apptFull.Patient?.User?.name,
+        patient_email: apptFull.Patient?.User?.email,
+        speciality_name: apptFull.Doctor?.speciality,
+        doctor_name: apptFull.Doctor?.User?.name,
+        doctor_email: apptFull.Doctor?.User?.email,
+        start_date: apptFull.date,
+        end_date: apptFull.end_time,
+        modality: apptFull.modality,
+        location: apptFull.location,
+        created_at: apptFull.created_at
+      };
+      emailService.sendEmailAppointment(mailData);
       return res
         .status(StatusCodes.CREATED)
-        .json({ data: appt });
+        .json({ data: apptFull });
 
     } catch (err) {
       console.error('Error en createAppointment:', err);
@@ -131,7 +185,18 @@ module.exports = {
     try {
       const { doctorId } = req.params;
       const list = await Appointment.findAll({
-        where: { doctor_id: doctorId },
+        where: { 
+          doctor_id: doctorId,
+          patient_id: { [Op.ne]: null } // Solo citas reales, no turnos disponibles
+        },
+        include: [
+          {
+            model: Patient,
+            include: [
+              { model: User, attributes: ['name', 'lastname', 'email'] }
+            ]
+          }
+        ],
         order: [['date','ASC'], ['start_time','ASC']]
       });
       return res
@@ -155,15 +220,20 @@ module.exports = {
       const { patientId } = req.params;
       const list = await Appointment.findAll({
         where: { patient_id: patientId },
-        order: [['date','ASC'], ['start_time','ASC']],
-        include: [{ // <-- ¡AÑADE ESTA SECCIÓN DE INCLUSIÓN!
-          model: Doctor, // Incluir el modelo Doctor
-          attributes: ['id', 'license_number'], // Puedes seleccionar atributos específicos del Doctor si los necesitas
-          include: [{ // Y dentro del Doctor, incluir el modelo User
-            model: User,
-            attributes: ['name', 'lastname'] // Obtener solo el nombre y apellido del usuario
-          }]
-        }]
+        include: [
+          {
+            model: Doctor,
+            include: [
+              { model: User, attributes: ['name', 'lastname', 'email'] },
+              { 
+                model: Specialty, 
+                through: { attributes: [] },
+                attributes: ['name'] 
+              }
+            ]
+          }
+        ],
+        order: [['date','ASC'], ['start_time','ASC']]
       });
 
       if (list.length === 0) {
@@ -218,6 +288,131 @@ module.exports = {
 
     } catch (err) {
       console.error('Error en updateStatus:', err);
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Error interno del servidor' });
+    }
+  },
+
+  /**
+   * GET /api/doctors/:id/available-slots
+   * Obtiene los turnos disponibles de un doctor en un rango de fechas
+   * Genera los slots basándose en la disponibilidad del doctor
+   */
+  getAvailableSlots: async (req, res) => {
+    try {
+      const { doctor } = req;
+      const { startDate, endDate } = req.query;
+
+      // Validar parámetros requeridos
+      if (!startDate || !endDate) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json({ 
+            message: 'Se requieren los parámetros startDate y endDate (YYYY-MM-DD)' 
+          });
+      }
+
+      // Validar formato de fechas
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json({ 
+            message: 'Formato de fecha inválido. Use YYYY-MM-DD' 
+          });
+      }
+
+      if (start > end) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json({ 
+            message: 'startDate debe ser anterior o igual a endDate' 
+          });
+      }
+
+      // Obtener la disponibilidad del doctor
+      const availability = await DoctorAvailability.findAll({
+        where: { doctor_id: doctor.id }
+      });
+
+      if (availability.length === 0) {
+        return res
+          .status(StatusCodes.OK)
+          .json({ 
+            data: [],
+            total: 0,
+            message: 'El doctor no tiene horarios de disponibilidad configurados'
+          });
+      }
+
+      // Generar slots disponibles para cada día en el rango
+      const availableSlots = [];
+      const currentDate = new Date(start);
+      
+      while (currentDate <= end) {
+        const weekday = currentDate.getDay();
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        // Buscar disponibilidad para este día de la semana
+        const dayAvailability = availability.filter(av => av.weekday === weekday);
+        
+        for (const av of dayAvailability) {
+          // Generar slots de 30 minutos dentro del horario disponible
+          const startTime = new Date(`2000-01-01T${av.start_time}`);
+          const endTime = new Date(`2000-01-01T${av.end_time}`);
+          const slotDuration = av.slot_duration_min || 30; // Default 30 minutos
+          
+          let currentSlot = new Date(startTime);
+          
+          while (currentSlot < endTime) {
+            const slotEnd = new Date(currentSlot.getTime() + slotDuration * 60000);
+            
+            if (slotEnd <= endTime) {
+              const startTimeStr = currentSlot.toTimeString().slice(0, 5);
+              const endTimeStr = slotEnd.toTimeString().slice(0, 5);
+              
+              // Verificar si este slot ya está reservado
+              const existingAppointment = await Appointment.findOne({
+                where: {
+                  doctor_id: doctor.id,
+                  date: dateStr,
+                  start_time: startTimeStr,
+                  end_time: endTimeStr,
+                  status: { [Op.ne]: 'cancelled' }
+                }
+              });
+              
+              // Solo incluir slots que no estén reservados
+              if (!existingAppointment) {
+                availableSlots.push({
+                  id: `slot_${dateStr}_${startTimeStr}`,
+                  date: dateStr,
+                  start_time: startTimeStr,
+                  end_time: endTimeStr,
+                  duration_minutes: slotDuration
+                });
+              }
+            }
+            
+            currentSlot = slotEnd;
+          }
+        }
+        
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+      }
+
+      return res
+        .status(StatusCodes.OK)
+        .json({ 
+          data: availableSlots,
+          total: availableSlots.length
+        });
+
+    } catch (err) {
+      console.error('Error en getAvailableSlots:', err);
       return res
         .status(StatusCodes.INTERNAL_SERVER_ERROR)
         .json({ message: 'Error interno del servidor' });

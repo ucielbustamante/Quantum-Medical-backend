@@ -46,6 +46,10 @@ exports.searchDoctor = async (req, res) => {
             userWhere.dni = dni;
         }
 
+        if (Array.isArray(specialties) && specialties.length > 0) {
+            doctorWhere['$Specialties.id$'] = { [Op.in]: specialties };
+        }
+
         const include = [
             {
                 model: User,
@@ -62,7 +66,6 @@ exports.searchDoctor = async (req, res) => {
         ];
 
         if (Array.isArray(specialties) && specialties.length > 0) {
-            include[1].where = { id: specialties };
             include[1].required = true;
         }
 

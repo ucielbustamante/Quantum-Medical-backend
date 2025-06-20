@@ -63,4 +63,13 @@ router.delete(
   ctrl.cancelAppointment
 );
 
+// GET /appointments
+// Roles permitidos: Admin
+// Lista todas las citas del sistema.
+router.get(
+  '/appointments',
+  [ authJwt.verifyToken, authJwt.isRole('Admin') ],
+  ctrl.getAppointments
+);
+
 module.exports = router;

@@ -204,6 +204,17 @@ exports.searchClinicalRecords = async (req, res) => {
         if (patient_id) where.patient_id = patient_id;
         if (title) where.title = { [Op.iLike]: `%${title}%` };
 
+        if (req.userRole === 'Patient') {
+            const patient = await Patient.findOne({ where: { user_id: req.userId } });
+            if (!patient) {
+                return res.status(StatusCodes.NOT_FOUND).json({
+                    statusCode: StatusCodes.NOT_FOUND,
+                    data: { message: "Perfil de paciente no encontrado" }
+                });
+            }
+            where.patient_id = patient.id;
+        }
+
         const clinicalRecords = await ClinicalRecord.findAndCountAll({
             where,
             include: [

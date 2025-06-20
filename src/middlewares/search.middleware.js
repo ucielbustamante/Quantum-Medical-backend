@@ -49,7 +49,10 @@ function toCamel(name) {
  */
 exports.findById = modelName => async (req, res, next) => {
   const { id } = req.params;
+  logger.info(`findById middleware called for ${modelName} with ID: ${id}`);
+  
   if (!id) {
+    logger.error(`ID no proporcionado para ${modelName}`);
     return res.status(StatusCodes.BAD_REQUEST).json({
       statusCode: StatusCodes.BAD_REQUEST,
       data: { message: 'ID no proporcionado' }
@@ -57,23 +60,36 @@ exports.findById = modelName => async (req, res, next) => {
   }
 
   const Model = modelMap[modelName];
+  if (!Model) {
+    logger.error(`Modelo no encontrado: ${modelName}`);
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      data: { message: `Modelo ${modelName} no válido` }
+    });
+  }
+  
   const options = { where: { id }, include: buildInclude(modelName) };
+  logger.info(`Searching for ${modelName} with options:`, JSON.stringify(options, null, 2));
 
   try {
     const entity = await Model.findOne(options);
+    logger.info(`Entity found for ${modelName}:`, entity ? 'YES' : 'NO');
 
     if (!entity) {
+      logger.error(`${modelName} no encontrado con ID: ${id}`);
       return res.status(StatusCodes.NOT_FOUND).json({
         statusCode: StatusCodes.NOT_FOUND,
         data: { message: `${modelName} no encontrado` }
       });
     }
 
-    req[toCamel(modelName)] = entity;
+    const camelName = toCamel(modelName);
+    req[camelName] = entity;
+    logger.info(`Entity attached to req.${camelName}`);
     next();
 
   } catch (err) {
-    logger.error(err);
+    logger.error(`Error in findById for ${modelName}:`, err);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
       data: { message: `Error al buscar ${modelName}` }
@@ -155,9 +171,16 @@ exports.findByEmailInBody = (modelName) => {
       const entity = await Model.findOne({ where: { email } });
       if (!entity) {
         logger.error(`${modelName} no encontrado para el email: ${email}`);
+        let errorMessage;
+        if (modelName === 'User') {
+          errorMessage = 'No existe una cuenta con este email. Verifica tu dirección de correo electrónico.';
+        } else {
+          errorMessage = `${modelName} no encontrado`;
+        }
+        
         return res.status(StatusCodes.NOT_FOUND).json({
           statusCode: StatusCodes.NOT_FOUND,
-          data: { message: `${modelName} no encontrado` }
+          data: { message: errorMessage }
         });
       }
 

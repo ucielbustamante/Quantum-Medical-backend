@@ -1,183 +1,249 @@
-# 🏥 Quantum Medical Backend
+# Quantum Medical Backend
 
-> **Sistema de gestión médica inteligente** - Una API REST robusta para la gestión integral de citas médicas, historiales clínicos y administración de personal sanitario.
+Sistema de gestión médica backend desarrollado con Node.js, Express y PostgreSQL. Proporciona una API REST robusta para la gestión integral de citas médicas, historiales clínicos y administración de personal sanitario con roles diferenciados.
 
-## 🚀 ¿Qué es Quantum Medical?
+## Características Principales
 
-Quantum Medical es una plataforma backend moderna que revoluciona la gestión de clínicas y hospitales. Diseñada con arquitectura escalable y tecnologías de vanguardia, ofrece una solución completa para la administración médica digital.
+### Autenticación y Autorización
+- Sistema de autenticación JWT con roles diferenciados (Admin, Doctor, Patient)
+- Protección de rutas basada en roles y permisos específicos
+- Integración con Google OAuth para autenticación social
+- Middleware de autorización personalizado para validaciones específicas
 
-### ✨ Características Principales
+### Gestión de Citas Médicas
+- Generación automática de horarios disponibles mediante cron jobs
+- Sistema de reserva de citas con validación de disponibilidad
+- Estados de citas: pending, confirmed, cancelled
+- Gestión de slots disponibles por doctor y fecha
 
-- **🔐 Autenticación Multi-rol**: Sistema de autenticación JWT con roles diferenciados (Admin, Doctor, Patient)
-- **📅 Gestión Inteligente de Citas**: Generación automática de horarios y citas disponibles
-- **📋 Historiales Clínicos Digitales**: Gestión completa de expedientes médicos
-- **📁 Documentos Clínicos**: Almacenamiento seguro en Google Drive
-- **👥 Gestión de Personal**: Administración de doctores, pacientes y especialidades
-- **📊 Monitoreo en Tiempo Real**: Métricas, logs y monitoreo de base de datos
-- **🔄 OAuth con Google**: Autenticación social integrada
+### Gestión de Datos Médicos
+- Historiales clínicos completos con documentos asociados
+- Almacenamiento seguro de documentos en Google Drive
+- Sistema de búsqueda y filtrado avanzado
+- Validación de acceso por roles y propiedad de datos
 
-## 🏗️ Arquitectura del Sistema
+### Monitoreo y Logs
+- Sistema de logging estructurado con Winston
+- Métricas de rendimiento con Prometheus
+- Monitoreo de conexiones de base de datos
+- Endpoint para logs del frontend
+
+## Arquitectura del Sistema
 
 ### Estructura de Directorios
 
 ```
 src/
-├── 📁 models/          # Modelos de datos (Sequelize)
-├── 📁 controllers/     # Lógica de negocio
-├── 📁 routes/          # Definición de endpoints
-├── 📁 middlewares/     # Interceptores y validaciones
-├── 📁 config/          # Configuraciones del sistema
-├── 📁 cron/           # Tareas programadas
-└── 📁 utils/          # Utilidades y helpers
+├── config/          # Configuraciones del sistema
+│   ├── auth.config.js
+│   ├── config.js
+│   ├── db-monitor.js
+│   ├── logger.js
+│   ├── metrics.js
+│   └── passport.config.js
+├── controllers/     # Lógica de negocio
+│   ├── appointment.controller.js
+│   ├── auth.controller.js
+│   ├── clinical-document.controller.js
+│   ├── clinical-record.controller.js
+│   ├── doctor.controller.js
+│   ├── doctorAvailability.controller.js
+│   ├── doctorSpecialty.controller.js
+│   ├── patient.controller.js
+│   ├── specialty.controller.js
+│   └── user.controller.js
+├── middlewares/     # Interceptores y validaciones
+│   ├── authjwt.middleware.js
+│   ├── authorization.middleware.js
+│   ├── multer.upload.middleware.js
+│   └── search.middleware.js
+├── models/          # Modelos de datos (Sequelize)
+│   ├── appointment.js
+│   ├── clinical_document.js
+│   ├── clinical_record.js
+│   ├── doctor.js
+│   ├── doctorAvailability.js
+│   ├── doctorSpecialty.js
+│   ├── index.js
+│   ├── oauthaccount.js
+│   ├── patient.js
+│   ├── specialty.js
+│   └── user.js
+├── routes/          # Definición de endpoints
+│   ├── appointment.routes.js
+│   ├── auth.routes.js
+│   ├── clinical-document.routes.js
+│   ├── clinical-record.routes.js
+│   ├── doctor.routes.js
+│   ├── doctorAvailability.routes.js
+│   ├── doctorSpecialty.routes.js
+│   ├── logs.frontend.routes.js
+│   ├── patient.routes.js
+│   ├── rbac.routes.js
+│   ├── specialty.routes.js
+│   └── user.routes.js
+├── cron/           # Tareas programadas
+│   └── appointment-generator.cron.js
+├── services/       # Servicios externos
+│   ├── file.service.js
+│   └── mail.service.js
+├── utils/          # Utilidades y helpers
+│   └── check-gdrive-creds.js
+└── index.js        # Punto de entrada de la aplicación
 ```
 
-### 🗄️ Modelos de Datos
+### Modelos de Datos
 
 El sistema utiliza **Sequelize ORM** con PostgreSQL y maneja las siguientes entidades principales:
 
-- **👤 Users**: Usuarios del sistema con roles diferenciados
-- **👨‍⚕️ Doctors**: Información de médicos y especialidades
-- **🏥 Patients**: Datos de pacientes
-- **📅 Appointments**: Citas médicas con estados dinámicos
-- **📋 Clinical Records**: Historiales clínicos completos
-- **📄 Clinical Documents**: Documentos médicos (Google Drive)
-- **⏰ Doctor Availability**: Horarios disponibles de médicos
-- **🏷️ Specialties**: Especialidades médicas
+- **User**: Usuarios del sistema con roles diferenciados
+- **Doctor**: Información de médicos con licencias
+- **Patient**: Datos de pacientes con información médica
+- **Specialty**: Especialidades médicas
+- **DoctorSpecialty**: Asociación muchos a muchos entre doctores y especialidades
+- **DoctorAvailability**: Horarios disponibles de médicos por día de la semana
+- **Appointment**: Citas médicas con estados dinámicos
+- **ClinicalRecord**: Historiales clínicos completos
+- **ClinicalDocument**: Documentos médicos asociados a historiales
+- **OAuthAccount**: Cuentas de autenticación social
 
-## 🔌 API Endpoints
+## API Endpoints
 
-### 🔐 Autenticación
+### Autenticación (`/api/auth`)
 ```
-POST   /api/auth/register              # Registro de usuarios
-POST   /api/auth/login                 # Inicio de sesión
-GET    /api/auth/google                # OAuth con Google
-POST   /api/auth/reset-password        # Recuperación de contraseña
-```
-
-### 👥 Gestión de Usuarios
-```
-POST   /api/users                      # Crear usuario (Admin)
-POST   /api/users/search               # Buscar usuarios (Admin)
-PUT    /api/users/:id                  # Actualizar usuario (Admin)
-DELETE /api/users/:id                  # Eliminar usuario (Admin)
+POST   /register              # Registro de usuarios
+POST   /login                 # Inicio de sesión
+GET    /google                # OAuth con Google
+GET    /google/callback       # Callback de Google OAuth
+POST   /reset-password        # Solicitar reset de contraseña
+POST   /reset-password/confirm # Confirmar reset de contraseña
 ```
 
-### 👨‍⚕️ Gestión de Doctores
+### Gestión de Usuarios (`/api/users`)
 ```
-POST   /api/doctors/search             # Buscar doctores (Admin, Patient)
-PUT    /api/doctors/:id                # Actualizar doctor (Admin)
-DELETE /api/doctors/:id                # Eliminar doctor (Admin)
-```
-
-### 🏥 Gestión de Pacientes
-```
-POST   /api/patients/search            # Buscar pacientes (Admin)
-PUT    /api/patients/:id               # Actualizar paciente (Admin)
-DELETE /api/patients/:id               # Eliminar paciente (Admin)
+POST   /                      # Crear usuario (Admin)
+POST   /search                # Buscar usuarios (Admin)
+PUT    /:id                   # Actualizar usuario (Admin)
+DELETE /:id                   # Eliminar usuario (Admin)
 ```
 
-### 📅 Disponibilidad y Citas
+### Gestión de Doctores (`/api/doctors`)
 ```
-GET    /api/availability               # Ver todas las disponibilidades
-GET    /api/doctors/:id/availability   # Horarios de un doctor
-POST   /api/doctors/:id/availability   # Crear disponibilidad (Doctor, Admin)
-DELETE /api/availability/:id           # Eliminar disponibilidad (Doctor, Admin)
-```
-
-### 📋 Historiales Clínicos
-```
-POST   /api/clinical-records           # Crear historial (Doctor, Admin)
-GET    /api/clinical-records/:id       # Ver historial
-PUT    /api/clinical-records/:id       # Actualizar historial (Doctor, Admin)
-DELETE /api/clinical-records/:id       # Eliminar historial (Doctor, Admin)
+POST   /search                # Buscar doctores (Admin, Patient)
+PUT    /:id                   # Actualizar doctor (Admin)
+DELETE /:id                   # Eliminar doctor (Admin)
 ```
 
-### 📄 Documentos Clínicos
+### Gestión de Pacientes (`/api/patients`)
 ```
-GET    /api/clinical-documents/:id     # Ver documento
-GET    /api/clinical-documents/record/:id  # Listar documentos por historial
-POST   /api/clinical-documents/upload/:id  # Subir documento (Doctor, Admin)
-DELETE /api/clinical-documents/:id     # Eliminar documento (Doctor, Admin)
-```
-
-### 🏷️ Especialidades
-```
-GET    /api/specialties                # Listar especialidades
-POST   /api/specialties                # Crear especialidad (Admin)
-PUT    /api/specialties/:id            # Actualizar especialidad (Admin)
-DELETE /api/specialties/:id            # Eliminar especialidad (Admin)
+POST   /search                # Buscar pacientes (Admin)
+PUT    /:id                   # Actualizar paciente (Admin)
+DELETE /:id                   # Eliminar paciente (Admin)
 ```
 
-### Endpoints de Citas (Appointments)
-
-#### Obtener Slots Disponibles de un Doctor
-**GET** `/api/doctors/:id/available-slots`
-
-Obtiene todos los turnos disponibles de un doctor en un rango de fechas específico. Los turnos están disponibles cuando `patient_id` es `null` (no reservados) y tienen status `pending`.
-
-**Parámetros de URL:**
-- `id` (UUID): ID del doctor
-
-**Query Parameters:**
-- `startDate` (string, requerido): Fecha de inicio en formato YYYY-MM-DD
-- `endDate` (string, requerido): Fecha de fin en formato YYYY-MM-DD
-
-**Roles permitidos:** Patient, Doctor, Admin
-
-**Ejemplo de uso:**
-```bash
-GET /api/doctors/123e4567-e89b-12d3-a456-426614174000/available-slots?startDate=2024-01-15&endDate=2024-01-20
+### Especialidades (`/api/specialties`)
+```
+GET    /                      # Listar especialidades (público)
+POST   /                      # Crear especialidad (Admin)
+PUT    /:id                   # Actualizar especialidad (Admin)
+DELETE /:id                   # Eliminar especialidad (Admin)
 ```
 
-**Respuesta exitosa (200):**
-```json
-{
-  "data": [
-    {
-      "id": "appointment-uuid",
-      "date": "2024-01-15",
-      "start_time": "09:00:00",
-      "end_time": "09:30:00",
-      "duration_minutes": 30
-    },
-    {
-      "id": "appointment-uuid-2",
-      "date": "2024-01-15",
-      "start_time": "09:30:00",
-      "end_time": "10:00:00",
-      "duration_minutes": 30
-    }
-  ],
-  "total": 2
-}
+### Asociación Doctor-Especialidad (`/api/doctor-specialties`)
+```
+GET    /                      # Listar asociaciones (público)
+POST   /                      # Crear asociación (Admin)
+DELETE /:doctor_id/:specialty_id # Eliminar asociación (Admin)
 ```
 
-**Respuesta cuando no hay turnos disponibles (200):**
-```json
-{
-  "data": [],
-  "total": 0
-}
+### Disponibilidad de Doctores (`/api`)
+```
+GET    /availability          # Listar todas las disponibilidades (público)
+GET    /doctors/:id/availability # Horarios de un doctor (público)
+POST   /doctors/:id/availability # Crear disponibilidad (Doctor, Admin)
+DELETE /availability/:id      # Eliminar disponibilidad (Doctor, Admin)
 ```
 
-**Nota:** Los turnos se generan automáticamente mediante un cron job basándose en la configuración de disponibilidad del doctor. Este endpoint solo retorna los appointments que están disponibles para reservar.
+### Citas Médicas (`/api`)
+```
+POST   /appointments          # Crear cita (Patient, Admin)
+GET    /patients/:patientId/appointments # Citas de un paciente (Patient propio, Admin)
+GET    /doctors/:doctorId/appointments   # Citas de un doctor (Doctor propio, Admin)
+GET    /doctors/:id/available-slots      # Turnos disponibles (Patient, Doctor, Admin)
+PATCH  /appointments/:id/status          # Actualizar estado (Doctor propietario, Admin)
+DELETE /appointments/:id                 # Eliminar cita (Admin)
+GET    /appointments                     # Listar todas las citas (Admin)
+```
 
-**Errores posibles:**
-- `400`: Parámetros faltantes o formato de fecha inválido
-- `404`: Doctor no encontrado
-- `401`: No autenticado
-- `403`: Rol no autorizado
-- `500`: Error interno del servidor
+### Historiales Clínicos (`/api/clinical-records`)
+```
+POST   /                      # Crear historial (Doctor, Admin)
+GET    /                      # Buscar historiales (Doctor, Admin)
+GET    /:id                   # Obtener historial específico
+PUT    /:id                   # Actualizar historial (Doctor, Admin)
+DELETE /:id                   # Eliminar historial (Doctor, Admin)
+```
 
-## 🔧 Configuración y Despliegue
+### Documentos Clínicos (`/api/clinical-documents`)
+```
+GET    /:id                   # Obtener documento (Patient propietario, Doctor, Admin)
+GET    /record/:id            # Listar documentos por historial
+POST   /upload/:id            # Subir documento (Doctor, Admin)
+DELETE /:id                   # Eliminar documento (Doctor, Admin)
+```
 
-### 📋 Prerrequisitos
+### RBAC y Sistema (`/api/rbac`, `/api/admin`)
+```
+GET    /rbac/doctor/dashboard # Dashboard del doctor
+GET    /rbac/admin/users      # Listar usuarios (Admin)
+GET    /rbac/patient/profile  # Perfil del paciente
+GET    /admin/db-stats        # Estadísticas de BD (Admin)
+```
+
+### Logs y Métricas
+```
+POST   /api/logs/frontend     # Enviar logs del frontend
+GET    /metrics               # Métricas Prometheus
+```
+
+## Configuración y Despliegue
+
+### Prerrequisitos
 
 - **Node.js** (v16 o superior)
 - **PostgreSQL** (v12 o superior)
 - **Google Cloud Platform** (para Google Drive API)
 
-### 🚀 Instalación
+### Variables de Entorno
+
+```env
+# Base de datos
+DB_USER=tu_usuario
+DB_PASS=tu_password
+DB_NAME=quantum_medical
+DB_HOST=localhost
+DB_PORT=5432
+
+# JWT
+JWT_SECRET=tu_secreto_jwt
+
+# Google OAuth
+GOOGLE_CLIENT_ID=tu_client_id
+GOOGLE_CLIENT_SECRET=tu_client_secret
+
+# Google Drive
+GOOGLE_DRIVE_CREDENTIALS=path/to/credentials.json
+
+# Frontend
+FRONTEND_URL=http://localhost:3000
+FRONTEND_KEY=tu_clave_frontend
+
+# Servidor
+PORT=5000
+NODE_ENV=development
+```
+
+### Instalación
 
 1. **Clonar el repositorio**
    ```bash
@@ -193,30 +259,7 @@ GET /api/doctors/123e4567-e89b-12d3-a456-426614174000/available-slots?startDate=
 3. **Configurar variables de entorno**
    ```bash
    cp .env.example .env
-   ```
-   
-   Configurar las siguientes variables:
-   ```env
-   # Base de datos
-   DB_USER=tu_usuario
-   DB_PASS=tu_password
-   DB_NAME=quantum_medical
-   DB_HOST=localhost
-   DB_PORT=5432
-   
-   # JWT
-   JWT_SECRET=tu_secreto_jwt
-   
-   # Google OAuth
-   GOOGLE_CLIENT_ID=tu_client_id
-   GOOGLE_CLIENT_SECRET=tu_client_secret
-   
-   # Google Drive
-   GOOGLE_DRIVE_CREDENTIALS=path/to/credentials.json
-   
-   # Frontend
-   FRONTEND_URL=http://localhost:3000
-   FRONTEND_KEY=tu_clave_frontend
+   # Editar .env con las variables necesarias
    ```
 
 4. **Ejecutar migraciones**
@@ -229,17 +272,26 @@ GET /api/doctors/123e4567-e89b-12d3-a456-426614174000/available-slots?startDate=
    npm start
    ```
 
-### 🧪 Testing
+## Middlewares Principales
 
-```bash
-# Ejecutar tests
-npm test
+### `authjwt.middleware.js`
+- **verifyToken**: Verificación de tokens JWT
+- **isRole**: Control de acceso basado en roles
 
-# Tests con coverage
-npm run test:coverage
-```
+### `authorization.middleware.js`
+- **patientSelfOrAdmin**: Verifica que el usuario sea el paciente propietario o un Admin
+- **doctorSelfOrAdmin**: Verifica que el usuario sea el doctor propietario o un Admin  
+- **appointmentDoctorOrAdmin**: Verifica que el usuario sea el doctor de la cita o un Admin
 
-## 🔄 Tareas Programadas
+### `search.middleware.js`
+- **findById**: Búsqueda automática de entidades por ID
+- **findByEmailInBody**: Búsqueda por email en body de request
+
+### `multer.upload.middleware.js`
+- **upload**: Gestión de subida de archivos
+- **handleMulterError**: Manejo de errores de upload
+
+## Tareas Programadas
 
 El sistema incluye un **generador automático de citas** que se ejecuta diariamente:
 
@@ -248,75 +300,49 @@ El sistema incluye un **generador automático de citas** que se ejecuta diariame
 - **Lógica**: Basada en la disponibilidad configurada por los doctores
 - **Estados**: `pending`, `confirmed`, `cancelled`
 
-## 🛡️ Seguridad
+## Seguridad
 
 ### Autenticación y Autorización
-
 - **JWT Tokens**: Autenticación stateless con tokens seguros
 - **Roles Múltiples**: Admin, Doctor, Patient con permisos diferenciados
 - **OAuth 2.0**: Integración con Google para autenticación social
 - **Middleware de Verificación**: Validación automática de tokens y roles
 
 ### Protección de Datos
-
 - **Validación de Entrada**: Middleware de búsqueda y validación
 - **Logs de Seguridad**: Registro de intentos de acceso no autorizados
-- **Rate Limiting**: Protección contra ataques de fuerza bruta
 - **CORS Configurado**: Control de acceso cross-origin
+- **Validación de Propiedad**: Verificación de acceso a datos propios
 
-## 📊 Monitoreo y Logs
+## Monitoreo y Logs
 
 ### Métricas del Sistema
-
 - **Endpoint de Métricas**: `/metrics` (Prometheus compatible)
 - **Estadísticas de BD**: `/api/admin/db-stats` (solo Admin)
 - **Logs Estructurados**: Winston con diferentes niveles
 - **Monitoreo de Pool**: Control de conexiones de base de datos
 
 ### Logs Frontend
-
 El sistema acepta logs del frontend para debugging centralizado:
 ```
 POST /api/logs/frontend
 ```
 
-## 🔧 Middlewares Principales
+## Características Avanzadas
 
-### `authjwt.middleware.js`
-- **verifyToken**: Verificación de tokens JWT
-- **isRole**: Control de acceso basado en roles
-
-### `search.middleware.js`
-- **findById**: Búsqueda automática de entidades
-- **findByEmailInBody**: Búsqueda por email en body
-
-### `multer.upload.middleware.js`
-- **upload**: Gestión de subida de archivos
-- **handleMulterError**: Manejo de errores de upload
-
-### `authorization.middleware.js`
-- **patientSelfOrAdmin**: Verifica que el usuario sea el paciente propietario o un Admin
-- **doctorSelfOrAdmin**: Verifica que el usuario sea el doctor propietario o un Admin  
-- **appointmentDoctorOrAdmin**: Verifica que el usuario sea el doctor de la cita o un Admin
-
-## 🚀 Características Avanzadas
-
-### 🔄 Generación Automática de Citas
-
+### Generación Automática de Citas
 El sistema genera automáticamente citas disponibles basándose en:
 - Horarios configurados por doctores
 - Duración de consultas
 - Días de la semana
 - Disponibilidad existente
 
-### 📁 Integración con Google Drive
-
+### Integración con Google Drive
 - Almacenamiento seguro de documentos médicos
 - Gestión automática de permisos
 - Sincronización en tiempo real
 
-### 🔍 Búsqueda Inteligente
-
+### Búsqueda Inteligente
 - Búsqueda por múltiples criterios
 - Filtros avanzados
 - Paginación automática
