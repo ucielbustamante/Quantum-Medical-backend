@@ -48,7 +48,7 @@ class MailService {
 
     async sendResetPasswordEmail(user, token) {
         try {
-            const resetPasswordUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+            const resetPasswordUrl = `${process.env.FRONTEND_URL}auth/reset-password?token=${token}`;
             const modelData = {
                 user_fullname: user.name + ' ' + user.lastname,
                 user_email: user.email,
